@@ -916,7 +916,7 @@
           type="warning" 
           @click="confirmHqTakeover" 
           :loading="hqTakeoverLoading"
-          :disabled="hqTakeoverAmount <= 0"
+          :disabled="hqTakeoverAmount <= 0 || (currentOrder && hqTakeoverAmount > currentOrder.totalAmount)"
         >确认兜底</el-button>
       </template>
     </el-dialog>
@@ -978,7 +978,7 @@
           type="primary" 
           @click="confirmHqTransfer" 
           :loading="hqTransferLoading"
-          :disabled="!hqTransferAssignee || hqTransferAmount <= 0"
+          :disabled="!hqTransferAssignee || hqTransferAmount <= 0 || (currentOrder && hqTransferAmount > currentOrder.totalAmount)"
         >确认转派</el-button>
       </template>
     </el-dialog>
@@ -1292,6 +1292,14 @@ const confirmAssign = async () => {
     return
   }
   if (!currentOrder.value) return
+  if (assignAmount.value <= 0) {
+    ElMessage.warning('请输入有效的指派金额')
+    return
+  }
+  if (assignAmount.value > currentOrder.value.totalAmount) {
+    ElMessage.warning(`指派金额不能大于客户下单金额（¥${currentOrder.value.totalAmount.toFixed(2)}）`)
+    return
+  }
   
   assigning.value = true
   try {
@@ -1370,6 +1378,10 @@ const confirmHqTakeover = async () => {
     return
   }
   if (!currentOrder.value) return
+  if (hqTakeoverAmount.value > currentOrder.value.totalAmount) {
+    ElMessage.warning(`指派金额不能大于客户下单金额（¥${currentOrder.value.totalAmount.toFixed(2)}）`)
+    return
+  }
 
   hqTakeoverLoading.value = true
   try {
@@ -1401,6 +1413,10 @@ const confirmHqTransfer = async () => {
     return
   }
   if (!currentOrder.value) return
+  if (hqTransferAmount.value > currentOrder.value.totalAmount) {
+    ElMessage.warning(`指派金额不能大于客户下单金额（¥${currentOrder.value.totalAmount.toFixed(2)}）`)
+    return
+  }
 
   hqTransferLoading.value = true
   try {
