@@ -400,12 +400,44 @@ export class OrderService {
 
   static exportToExcel(params: OrderFilterParams = {}): Buffer {
     const result = this.findAll({ ...params, page: 1, pageSize: 99999 });
+
+    const headers = [
+      '订单编号', '订单类型', '订单状态', '来源平台',
+      '客户姓名', '联系电话', '电子邮箱', '收货地址',
+      '商品名称', '商品SKU', '商品明细',
+      '订单总额(元)', '优惠金额(元)', '实付金额(元)',
+      '支付方式', '支付时间', '下单时间', '更新时间',
+      '指派人员', '来源渠道', '备注',
+      '租赁状态', '租期', '租赁开始日期', '租赁结束日期',
+      '月租金(元)', '押金(元)', '物损押金(元)'
+    ];
+
     const rows = result.list.map(order => {
       const productNames = order.products.map(p => p.name).join('、');
       const productSkus = order.products.map(p => p.sku).join('、');
       const productQuantities = order.products.map(p => `${p.name}×${p.quantity}`).join('、');
 
-      const row: Record<string, any> = {
+      let leaseStatus = '-';
+      let leasePeriod = '-';
+      let leaseStartDate = '-';
+      let leaseEndDate = '-';
+      let monthlyRent = '-';
+      let deposit = '-';
+      let damageDeposit = '-';
+
+      if (order.type === 'lease' && order.leaseInfo) {
+        const unit = order.leaseInfo.leaseUnit === 'day' ? '天'
+          : order.leaseInfo.leaseUnit === 'month' ? '个月' : '年';
+        leaseStatus = LEASE_STATUS_LABELS[order.leaseInfo.leaseStatus];
+        leasePeriod = `${order.leaseInfo.leasePeriod}${unit}`;
+        leaseStartDate = order.leaseInfo.startDate;
+        leaseEndDate = order.leaseInfo.endDate;
+        monthlyRent = order.leaseInfo.monthlyRent.toFixed(2);
+        deposit = order.leaseInfo.deposit.toFixed(2);
+        damageDeposit = order.leaseInfo.damageDeposit.toFixed(2);
+      }
+
+      return {
         '订单编号': order.orderNo,
         '订单类型': ORDER_TYPE_LABELS[order.type],
         '订单状态': ORDER_STATUS_LABELS[order.status],
@@ -426,26 +458,19 @@ export class OrderService {
         '更新时间': new Date(order.updateTime).toLocaleString('zh-CN'),
         '指派人员': order.assignee || '未指派',
         '来源渠道': order.sourceChannel || '-',
-        '备注': order.remark || '-'
+        '备注': order.remark || '-',
+        '租赁状态': leaseStatus,
+        '租期': leasePeriod,
+        '租赁开始日期': leaseStartDate,
+        '租赁结束日期': leaseEndDate,
+        '月租金(元)': monthlyRent,
+        '押金(元)': deposit,
+        '物损押金(元)': damageDeposit
       };
-
-      if (order.type === 'lease' && order.leaseInfo) {
-        Object.assign(row, {
-          '租赁状态': LEASE_STATUS_LABELS[order.leaseInfo.leaseStatus],
-          '租期': `${order.leaseInfo.leasePeriod}${order.leaseInfo.leaseUnit === 'day' ? '天' : order.leaseInfo.leaseUnit === 'month' ? '个月' : '年'}`,
-          '租赁开始日期': order.leaseInfo.startDate,
-          '租赁结束日期': order.leaseInfo.endDate,
-          '月租金(元)': order.leaseInfo.monthlyRent.toFixed(2),
-          '押金(元)': order.leaseInfo.deposit.toFixed(2),
-          '物损押金(元)': order.leaseInfo.damageDeposit.toFixed(2)
-        });
-      }
-
-      return row;
     });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = Object.keys(rows[0] || {}).map(() => ({ wch: 15 }));
+    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+    ws['!cols'] = headers.map(h => ({ wch: 15 }));
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '订单列表');
