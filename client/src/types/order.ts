@@ -137,6 +137,58 @@ export interface ConstantsData {
   sourceChannels: string[];
 }
 
+export type OperationType =
+  | 'create'
+  | 'pay'
+  | 'process'
+  | 'ship'
+  | 'deliver'
+  | 'complete'
+  | 'cancel'
+  | 'refund'
+  | 'assign'
+  | 'reassign'
+  | 'remark'
+  | 'lease_start'
+  | 'lease_return'
+  | 'lease_overdue';
+
+export interface OperationLog {
+  id: string;
+  orderId: string;
+  orderNo: string;
+  operationType: OperationType;
+  operationName: string;
+  operator: string;
+  operatorRole: string;
+  operateTime: string;
+  beforeValue?: string;
+  afterValue?: string;
+  remark?: string;
+}
+
+export interface OrderDetail {
+  order: Order;
+  logs: OperationLog[];
+}
+
+export const OPERATION_TYPE_COLORS: Record<OperationType, string> = {
+  create: '#52c41a',
+  pay: '#1890ff',
+  process: '#722ed1',
+  ship: '#13c2c2',
+  deliver: '#2f54eb',
+  complete: '#52c41a',
+  cancel: '#8c8c8c',
+  refund: '#f5222d',
+  assign: '#fa8c16',
+  reassign: '#faad14',
+  remark: '#b37feb',
+  lease_start: '#1890ff',
+  lease_return: '#13c2c2',
+  lease_overdue: '#f5222d'
+};
+
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   pending_payment: '#faad14',
   paid: '#1890ff',

@@ -5,7 +5,9 @@ import type {
   PaginatedResponse,
   ApiResponse,
   OrderStatistics,
-  ConstantsData
+  ConstantsData,
+  OperationLog,
+  OrderDetail
 } from '../types/order';
 
 const request = axios.create({
@@ -28,6 +30,20 @@ export const orderApi = {
 
   getDetail(id: string): Promise<ApiResponse<Order>> {
     return request.get(`/orders/${id}`);
+  },
+
+  getDetailWithLogs(id: string): Promise<ApiResponse<OrderDetail>> {
+    return request.get(`/orders/${id}/detail`);
+  },
+
+  getOperationLogs(id: string): Promise<ApiResponse<OperationLog[]>> {
+    return request.get(`/orders/${id}/logs`);
+  },
+
+  exportOrderDetail(id: string): Promise<Blob> {
+    return request.get(`/orders/${id}/export`, {
+      responseType: 'blob'
+    });
   },
 
   assign(orderId: string, assignee: string): Promise<ApiResponse<Order>> {

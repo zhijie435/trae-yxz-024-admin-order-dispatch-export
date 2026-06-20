@@ -116,6 +116,72 @@ export interface AssignOrderParams {
   assignee: string;
 }
 
+export type OperationType =
+  | 'create'
+  | 'pay'
+  | 'process'
+  | 'ship'
+  | 'deliver'
+  | 'complete'
+  | 'cancel'
+  | 'refund'
+  | 'assign'
+  | 'reassign'
+  | 'remark'
+  | 'lease_start'
+  | 'lease_return'
+  | 'lease_overdue';
+
+export interface OperationLog {
+  id: string;
+  orderId: string;
+  orderNo: string;
+  operationType: OperationType;
+  operationName: string;
+  operator: string;
+  operatorRole: string;
+  operateTime: string;
+  beforeValue?: string;
+  afterValue?: string;
+  remark?: string;
+}
+
+export const OPERATION_TYPE_LABELS: Record<OperationType, string> = {
+  create: '创建订单',
+  pay: '支付订单',
+  process: '开始处理',
+  ship: '订单发货',
+  deliver: '确认送达',
+  complete: '订单完成',
+  cancel: '取消订单',
+  refund: '订单退款',
+  assign: '指派订单',
+  reassign: '改派订单',
+  remark: '更新备注',
+  lease_start: '租赁开始',
+  lease_return: '租赁归还',
+  lease_overdue: '租赁逾期'
+};
+
+export const OPERATION_TYPE_COLORS: Record<OperationType, string> = {
+  create: '#52c41a',
+  pay: '#1890ff',
+  process: '#722ed1',
+  ship: '#13c2c2',
+  deliver: '#2f54eb',
+  complete: '#52c41a',
+  cancel: '#8c8c8c',
+  refund: '#f5222d',
+  assign: '#fa8c16',
+  reassign: '#faad14',
+  remark: '#b37feb',
+  lease_start: '#1890ff',
+  lease_return: '#13c2c2',
+  lease_overdue: '#f5222d'
+};
+
+export const OPERATOR_ROLES = ['系统', '客服', '仓管', '财务', '运营', '管理员'];
+
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending_payment: '待付款',
   paid: '已付款',

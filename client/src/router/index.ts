@@ -10,6 +10,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Orders',
     component: () => import('../views/OrderList.vue'),
     meta: { title: '订单列表' }
+  },
+  {
+    path: '/orders/:id',
+    name: 'OrderDetail',
+    component: () => import('../views/OrderDetail.vue'),
+    meta: { title: '订单详情' }
   }
 ];
 

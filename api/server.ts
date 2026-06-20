@@ -134,6 +134,55 @@ app.post('/api/orders/batch-assign', (req, res) => {
   }
 });
 
+app.get('/api/orders/:id/detail', (req, res) => {
+  try {
+    const detail = OrderService.getOrderDetail(req.params.id);
+    if (!detail) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: 'success', data: detail });
+  } catch (error) {
+    console.error('获取订单详情失败:', error);
+    res.status(500).json({ code: 500, message: '获取订单详情失败' });
+  }
+});
+
+app.get('/api/orders/:id/logs', (req, res) => {
+  try {
+    const order = OrderService.findById(req.params.id);
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    const logs = OrderService.getOperationLogs(req.params.id);
+    res.json({ code: 0, message: 'success', data: logs });
+  } catch (error) {
+    console.error('获取操作日志失败:', error);
+    res.status(500).json({ code: 500, message: '获取操作日志失败' });
+  }
+});
+
+app.get('/api/orders/:id/export', (req, res) => {
+  try {
+    const buffer = OrderService.exportOrderDetail(req.params.id);
+    if (!buffer) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    const order = OrderService.findById(req.params.id);
+    const orderNo = order ? order.orderNo : req.params.id;
+    const filename = `订单详情_${orderNo}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('导出订单详情失败:', error);
+    res.status(500).json({ code: 500, message: '导出订单详情失败' });
+  }
+});
+
 app.get('/api/orders/:id', (req, res) => {
   try {
     const order = OrderService.findById(req.params.id);
@@ -166,8 +215,18 @@ app.get('/api/constants', (_req, res) => {
 
 app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
 
+const clientIndex = path.join(__dirname, '..', 'client', 'dist', 'index.html');
 app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
+  res.sendFile(clientIndex, (err) => {
+    if (err) {
+      res.status(404).json({ code: 404, message: '资源不存在，前端未构建或接口路径错误' });
+    }
+  });
+});
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('服务器错误:', err.message);
+  res.status(500).json({ code: 500, message: '服务器内部错误' });
 });
 
 app.listen(PORT, () => {

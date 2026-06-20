@@ -399,11 +399,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="120" fixed="right" align="center">
+        <el-table-column label="操作" width="170" fixed="right" align="center">
           <template #default="{ row }">
-            <el-space>
-              <el-button link type="primary" @click="showDetail(row)">
-                <el-icon><View /></el-icon>详情
+            <el-space :size="4">
+              <el-button link type="primary" size="small" @click="showDetail(row)">
+                <el-icon><View /></el-icon>预览
+              </el-button>
+              <el-button link type="success" size="small" @click="goDetail(row)">
+                详情<el-icon><ArrowRight /></el-icon>
               </el-button>
             </el-space>
           </template>
@@ -553,6 +556,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Search,
@@ -568,7 +572,8 @@ import {
   Clock,
   Wallet,
   User,
-  List
+  List,
+  ArrowRight
 } from '@element-plus/icons-vue';
 import { orderApi } from '../api/order';
 import type {
@@ -578,6 +583,8 @@ import type {
   ConstantsData
 } from '../types/order';
 import { ORDER_STATUS_COLORS, LEASE_STATUS_COLORS } from '../types/order';
+
+const router = useRouter();
 
 const loading = ref(false);
 const orders = ref<Order[]>([]);
@@ -751,6 +758,10 @@ function indexMethod(index: number) {
 function showDetail(row: Order) {
   currentOrder.value = row;
   detailVisible.value = true;
+}
+
+function goDetail(row: Order) {
+  router.push(`/orders/${row.id}`);
 }
 
 function showAssignDialog(row: Order) {
