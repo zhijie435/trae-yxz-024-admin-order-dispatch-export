@@ -296,8 +296,17 @@
                   {{ row.assignee || '未指派' }}
                 </el-tag>
               </el-descriptions-item>
+              <el-descriptions-item v-if="row.assignAmount !== undefined && row.assignAmount !== null" label="指派金额">
+                <span style="color: #67c23a; font-weight: bold; font-size: 15px;">
+                  {{ formatAmount(row.assignAmount) }}
+                  <el-tag type="success" size="small" style="margin-left: 4px;">门店结算</el-tag>
+                </span>
+              </el-descriptions-item>
               <el-descriptions-item label="商品总额">
-                <span style="color: #f56c6c; font-weight: bold;">
+                <span v-if="row.assignAmount !== undefined && row.assignAmount !== null" style="color: #909399; text-decoration: line-through;">
+                  {{ formatAmount(row.totalAmount) }}
+                </span>
+                <span v-else style="color: #f56c6c; font-weight: bold;">
                   {{ formatAmount(row.totalAmount) }}
                 </span>
               </el-descriptions-item>
@@ -308,7 +317,7 @@
               </el-descriptions-item>
               <el-descriptions-item label="实付金额">
                 <span style="color: #409eff; font-weight: bold;">
-                  {{ formatAmount(row.paidAmount) }}
+                  {{ formatAmount(row.assignAmount !== undefined && row.assignAmount !== null ? row.assignAmount : row.paidAmount) }}
                 </span>
               </el-descriptions-item>
               <el-descriptions-item label="支付时间">
@@ -345,12 +354,6 @@
               <el-descriptions-item label="是否总部兜底">
                 <el-tag v-if="row.isHqTakeover" type="warning" size="small">是</el-tag>
                 <span v-else style="color: #909399;">否</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="指派金额">
-                <span v-if="row.assignAmount" style="color: #409eff; font-weight: bold;">
-                  ¥{{ row.assignAmount.toFixed(2) }}
-                </span>
-                <span v-else style="color: #909399;">-</span>
               </el-descriptions-item>
               <el-descriptions-item v-if="row.rejectReason" label="拒单原因" :span="3">
                 <span style="color: #f56c6c;">{{ row.rejectReason }}</span>
@@ -472,23 +475,33 @@
         <el-table-column prop="customer.phone" label="联系电话" width="130" />
 
         <el-table-column 
-          prop="totalAmount" 
           label="订单金额" 
-          width="130" 
+          width="150" 
           align="right"
           sortable="custom"
         >
           <template #default="{ row }">
-            <span style="color: #f56c6c; font-weight: 600;">
-              {{ formatAmount(row.totalAmount) }}
-            </span>
+            <div v-if="row.assignAmount !== undefined && row.assignAmount !== null">
+              <div style="color: #f56c6c; font-weight: 600;">
+                {{ formatAmount(row.assignAmount) }}
+                <el-tag type="success" size="small" style="margin-left: 4px;">指派</el-tag>
+              </div>
+              <div style="font-size: 12px; color: #909399; text-decoration: line-through;">
+                下单 {{ formatAmount(row.totalAmount) }}
+              </div>
+            </div>
+            <div v-else>
+              <span style="color: #f56c6c; font-weight: 600;">
+                {{ formatAmount(row.totalAmount) }}
+              </span>
+            </div>
           </template>
         </el-table-column>
 
         <el-table-column label="实付金额" width="130" align="right">
           <template #default="{ row }">
             <span style="color: #409eff; font-weight: 600;">
-              {{ formatAmount(row.paidAmount) }}
+              {{ formatAmount(row.assignAmount !== undefined && row.assignAmount !== null ? row.assignAmount : row.paidAmount) }}
             </span>
           </template>
         </el-table-column>
@@ -640,14 +653,23 @@
           <el-descriptions-item label="收货地址" :span="2">
             {{ currentOrder.customer.address }}
           </el-descriptions-item>
+          <el-descriptions-item v-if="currentOrder.assignAmount !== undefined && currentOrder.assignAmount !== null" label="指派金额">
+            <span style="color: #67c23a; font-weight: bold; font-size: 16px;">
+              {{ formatAmount(currentOrder.assignAmount) }}
+              <el-tag type="success" size="small" style="margin-left: 8px;">门店结算金额</el-tag>
+            </span>
+          </el-descriptions-item>
           <el-descriptions-item label="商品总额">
-            <span style="color: #f56c6c; font-weight: bold;">
+            <span v-if="currentOrder.assignAmount !== undefined && currentOrder.assignAmount !== null" style="color: #909399; text-decoration: line-through;">
+              {{ formatAmount(currentOrder.totalAmount) }}
+            </span>
+            <span v-else style="color: #f56c6c; font-weight: bold;">
               {{ formatAmount(currentOrder.totalAmount) }}
             </span>
           </el-descriptions-item>
           <el-descriptions-item label="实付金额">
             <span style="color: #409eff; font-weight: bold;">
-              {{ formatAmount(currentOrder.paidAmount) }}
+              {{ formatAmount(currentOrder.assignAmount !== undefined && currentOrder.assignAmount !== null ? currentOrder.assignAmount : currentOrder.paidAmount) }}
             </span>
           </el-descriptions-item>
           <el-descriptions-item label="支付方式">
@@ -1197,6 +1219,7 @@ const resetFilter = () => {
   filterForm.maxAmount = undefined
   filterForm.assignee = undefined
   filterForm.leaseStatus = undefined
+  filterForm.assignStage = undefined
   dateRange.value = []
   sourceChannelFilter.value = undefined
 }
@@ -1306,6 +1329,133 @@ const confirmStatus = async () => {
     ElMessage.error(e.message || '状态修改失败')
   } finally {
     statusUpdating.value = false
+  }
+}
+
+const handleReject = (row: Order) => {
+  currentOrder.value = row
+  rejectReason.value = ''
+  rejectDialogVisible.value = true
+}
+
+const confirmReject = async () => {
+  if (!rejectReason.value.trim()) {
+    ElMessage.warning('请填写拒单原因')
+    return
+  }
+  if (!currentOrder.value) return
+
+  rejecting.value = true
+  try {
+    await rejectOrder(currentOrder.value.id, rejectReason.value.trim())
+    ElMessage.success('拒单成功')
+    rejectDialogVisible.value = false
+    fetchOrders()
+  } catch (e: any) {
+    ElMessage.error(e.message || '拒单失败')
+  } finally {
+    rejecting.value = false
+  }
+}
+
+const handleHqTakeover = (row: Order) => {
+  currentOrder.value = row
+  hqTakeoverAmount.value = row.totalAmount * 0.8
+  hqTakeoverDialogVisible.value = true
+}
+
+const confirmHqTakeover = async () => {
+  if (hqTakeoverAmount.value <= 0) {
+    ElMessage.warning('请输入有效的指派金额')
+    return
+  }
+  if (!currentOrder.value) return
+
+  hqTakeoverLoading.value = true
+  try {
+    await hqTakeoverOrder(currentOrder.value.id, hqTakeoverAmount.value)
+    ElMessage.success('总部兜底接单成功')
+    hqTakeoverDialogVisible.value = false
+    fetchOrders()
+  } catch (e: any) {
+    ElMessage.error(e.message || '总部兜底接单失败')
+  } finally {
+    hqTakeoverLoading.value = false
+  }
+}
+
+const handleHqTransfer = (row: Order) => {
+  currentOrder.value = row
+  hqTransferAssignee.value = ''
+  hqTransferAmount.value = row.totalAmount * 0.8
+  hqTransferDialogVisible.value = true
+}
+
+const confirmHqTransfer = async () => {
+  if (!hqTransferAssignee.value) {
+    ElMessage.warning('请选择转派对象')
+    return
+  }
+  if (hqTransferAmount.value <= 0) {
+    ElMessage.warning('请输入有效的指派金额')
+    return
+  }
+  if (!currentOrder.value) return
+
+  hqTransferLoading.value = true
+  try {
+    await hqTransferOrder(
+      currentOrder.value.id,
+      hqTransferAssignee.value,
+      hqTransferAmount.value
+    )
+    ElMessage.success('总部转派成功')
+    hqTransferDialogVisible.value = false
+    fetchOrders()
+  } catch (e: any) {
+    ElMessage.error(e.message || '总部转派失败')
+  } finally {
+    hqTransferLoading.value = false
+  }
+}
+
+const handleHqCancel = (row: Order) => {
+  currentOrder.value = row
+  hqCancelReason.value = ''
+  hqCancelDialogVisible.value = true
+}
+
+const confirmHqCancel = async () => {
+  if (!hqCancelReason.value.trim()) {
+    ElMessage.warning('请填写取消原因')
+    return
+  }
+  if (!currentOrder.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      '确定要取消该订单吗？取消后不可恢复。',
+      '确认取消订单',
+      {
+        confirmButtonText: '确定取消',
+        cancelButtonText: '再想想',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return
+  }
+
+  hqCancelLoading.value = true
+  try {
+    await hqCancelOrder(currentOrder.value.id, hqCancelReason.value.trim())
+    ElMessage.success('订单已取消')
+    hqCancelDialogVisible.value = false
+    fetchOrders()
+  } catch (e: any) {
+    ElMessage.error(e.message || '取消订单失败')
+  } finally {
+    hqCancelLoading.value = false
   }
 }
 

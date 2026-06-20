@@ -7,7 +7,8 @@ import {
   Platform,
   Customer,
   Product,
-  LeaseInfo
+  LeaseInfo,
+  AssignStage
 } from '../types/order';
 
 const FIRST_NAMES = ['张', '李', '王', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '马', '朱', '胡', '郭', '何', '高', '林', '罗'];
@@ -163,6 +164,16 @@ function generateOrder(): Order {
   const discountAmount = Math.random() > 0.5 ? parseFloat((totalAmount * randomFloat(0.05, 0.3)).toFixed(2)) : 0;
   const paidAmount = parseFloat((totalAmount - discountAmount).toFixed(2));
   
+  const rawAssignee = random(ASSIGNEES);
+  const hasAssignee = rawAssignee !== '未指派';
+  const assignStages: AssignStage[] = ['assigned', 'store_rejected'];
+  const assignStage: AssignStage | undefined = hasAssignee ? random(assignStages) : undefined;
+  const assignee = hasAssignee ? rawAssignee : undefined;
+  const assignAmount = hasAssignee && assignStage === 'assigned'
+    ? parseFloat((paidAmount * randomFloat(0.6, 0.95)).toFixed(2))
+    : undefined;
+  const isHqTakeover = assignStage === 'assigned' && Math.random() > 0.85;
+  
   const order: Order = {
     id: 'ORD' + Date.now() + randomInt(1000, 9999),
     orderNo: generateOrderNo(type),
@@ -179,7 +190,11 @@ function generateOrder(): Order {
     createTime,
     updateTime,
     remark: Math.random() > 0.7 ? `客户备注：${random(['尽快发货', '需要发票', '周末配送', '联系前电话', '开箱验货'])}` : undefined,
-    assignee: random(ASSIGNEES),
+    assignee,
+    assignAmount,
+    assignStage,
+    rejectReason: assignStage === 'store_rejected' ? random(['库存不足', '距离太远无法配送', '人手不足', '客户需求特殊无法满足']) : undefined,
+    isHqTakeover,
     sourceChannel: random(SOURCE_CHANNELS)
   };
   
