@@ -27,6 +27,12 @@ let orders: Order[] = [...mockOrders];
 let operationLogMap: Map<string, OperationLog[]> = generateOperationLogs(orders);
 let logSeq = 0;
 
+export function resetOrderState(seed?: Order[]): void {
+  orders = seed ? seed.map(o => ({ ...o })) : [...mockOrders];
+  operationLogMap = generateOperationLogs(orders);
+  logSeq = 0;
+}
+
 export class ValidationError extends Error {
   constructor(message: string) {
     super(message);

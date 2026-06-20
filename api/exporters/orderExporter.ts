@@ -12,11 +12,11 @@ import {
 
 const EXPORT_HEADERS = [
   '订单编号', '订单类型', '订单状态', '所属城市', '指派阶段', '跨城市指派',
-  '来源平台', '客户姓名', '联系电话', '电子邮箱', '收货地址',
+  '来源平台', '客户姓名', '联系电话', '电子邮箱', '客户编号', '收货地址',
   '商品名称', '商品SKU', '商品明细',
   '订单总额(元)', '优惠金额(元)', '实付金额(元)', '指派金额(元)',
   '支付方式', '支付时间', '下单时间', '更新时间',
-  '指派人员', '来源渠道', '备注',
+  '指派人员', '是否总部兜底', '拒单原因', '来源渠道', '备注',
   '租赁状态', '租期', '租赁开始日期', '租赁结束日期',
   '月租金(元)', '押金(元)', '物损押金(元)'
 ];
@@ -48,6 +48,7 @@ function buildSingleOrderRow(order: Order): OrderExportRow {
     '客户姓名': order.customer.name,
     '联系电话': order.customer.phone,
     '电子邮箱': order.customer.email || '-',
+    '客户编号': order.customer.id,
     '收货地址': order.customer.address,
     '商品名称': productNames,
     '商品SKU': productSkus,
@@ -61,6 +62,8 @@ function buildSingleOrderRow(order: Order): OrderExportRow {
     '下单时间': formatDateTime(order.createTime),
     '更新时间': formatDateTime(order.updateTime),
     '指派人员': order.assignee || '未指派',
+    '是否总部兜底': order.isHqTakeover ? '是' : '否',
+    '拒单原因': order.rejectReason || '-',
     '来源渠道': order.sourceChannel || '-',
     '备注': order.remark || '-',
     ...leaseFields
@@ -112,6 +115,7 @@ export function buildOrderInfoRows(order: Order): Array<{ 项目: string; 内容
     { 项目: '客户姓名', 内容: order.customer.name },
     { 项目: '联系电话', 内容: order.customer.phone },
     { 项目: '电子邮箱', 内容: order.customer.email || '-' },
+    { 项目: '客户编号', 内容: order.customer.id },
     { 项目: '收货地址', 内容: order.customer.address },
     { 项目: '订单总额(元)', 内容: order.totalAmount.toFixed(2) },
     { 项目: '优惠金额(元)', 内容: order.discountAmount.toFixed(2) },
@@ -122,6 +126,8 @@ export function buildOrderInfoRows(order: Order): Array<{ 项目: string; 内容
     { 项目: '下单时间', 内容: formatDateTime(order.createTime) },
     { 项目: '更新时间', 内容: formatDateTime(order.updateTime) },
     { 项目: '指派人员', 内容: order.assignee || '未指派' },
+    { 项目: '是否总部兜底', 内容: order.isHqTakeover ? '是' : '否' },
+    { 项目: '拒单原因', 内容: order.rejectReason || '-' },
     { 项目: '备注', 内容: order.remark || '-' }
   ];
 

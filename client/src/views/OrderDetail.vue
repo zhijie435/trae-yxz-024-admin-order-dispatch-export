@@ -81,6 +81,34 @@
               </el-tag>
               <el-tag v-else type="info" effect="plain">未指派</el-tag>
             </el-descriptions-item>
+            <el-descriptions-item label="指派阶段">
+              <el-tag
+                v-if="order.assignStage"
+                :color="ASSIGN_STAGE_COLORS[order.assignStage]"
+                effect="dark"
+                size="small"
+                style="border: none"
+              >
+                {{ ASSIGN_STAGE_LABELS[order.assignStage] }}
+              </el-tag>
+              <span v-else style="color: #ccc">-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="指派金额">
+              <span v-if="order.assignAmount !== undefined" style="color: #f5222d; font-weight: 500">
+                ¥{{ formatMoney(order.assignAmount) }}
+              </span>
+              <span v-else style="color: #ccc">-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="是否总部兜底">
+              <el-tag v-if="order.isHqTakeover" type="warning" effect="dark" size="small" style="border: none">
+                是
+              </el-tag>
+              <span v-else style="color: #999">否</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="拒单原因" :span="2">
+              <span v-if="order.rejectReason" style="color: #f5222d">{{ order.rejectReason }}</span>
+              <span v-else style="color: #ccc">-</span>
+            </el-descriptions-item>
             <el-descriptions-item label="备注" :span="2">
               {{ order.remark || '-' }}
             </el-descriptions-item>
@@ -174,6 +202,15 @@
               <span class="label">实付金额</span>
               <span class="value paid">¥{{ formatMoney(order.paidAmount) }}</span>
             </div>
+            <template v-if="order.assignAmount !== undefined">
+              <el-divider style="margin: 12px 0" />
+              <div class="amount-row">
+                <span class="label">指派金额</span>
+                <span class="value" style="color: #fa8c16; font-weight: 500">
+                  ¥{{ formatMoney(order.assignAmount) }}
+                </span>
+              </div>
+            </template>
           </div>
 
           <template v-if="order.type === 'lease' && order.leaseInfo">
@@ -349,7 +386,9 @@ import type {
 import {
   ORDER_STATUS_COLORS,
   LEASE_STATUS_COLORS,
-  OPERATION_TYPE_COLORS
+  OPERATION_TYPE_COLORS,
+  ASSIGN_STAGE_LABELS,
+  ASSIGN_STAGE_COLORS
 } from '../types/order';
 
 const route = useRoute();
@@ -377,6 +416,10 @@ const statusTimeline = computed(() => {
     'pay',
     'assign',
     'reassign',
+    'store_reject',
+    'hq_takeover',
+    'hq_transfer',
+    'hq_cancel',
     'process',
     'ship',
     'deliver',
