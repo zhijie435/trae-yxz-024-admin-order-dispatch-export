@@ -49,6 +49,14 @@ export interface Customer {
   phone: string;
   email?: string;
   address: string;
+  city: string;
+}
+
+export interface Assignee {
+  id: string;
+  name: string;
+  city: string;
+  level?: 'primary' | 'secondary' | 'normal';
 }
 
 export interface Product {
@@ -95,6 +103,8 @@ export interface Order {
   assignStage?: AssignStage;
   rejectReason?: string;
   isHqTakeover?: boolean;
+  city: string;
+  isCrossCityAssign?: boolean;
 }
 
 export interface OrderFilter {
@@ -112,6 +122,24 @@ export interface OrderFilter {
   assignee?: string;
   leaseStatus?: LeaseStatus;
   assignStage?: AssignStage;
+  city?: string;
+  isCrossCityAssign?: boolean;
+  keyword?: string;
+  sourceChannel?: string;
+}
+
+export interface CrossCityAssignParams {
+  orderId: string;
+  assignee: string;
+  assignAmount?: number;
+  allowCrossCity?: boolean;
+  crossCitySurchargeRate?: number;
+}
+
+export interface BatchAssignResult {
+  success: number;
+  failed: number;
+  errors: Array<{ orderId: string; message: string }>;
 }
 
 export interface PaginationParams {
@@ -148,7 +176,27 @@ export interface EnumOptions {
   assignees: SelectOption[];
   sourceChannels: SelectOption[];
   assignStages: SelectOption[];
+  cities: SelectOption[];
 }
+
+export const CITIES = [
+  '北京市', '上海市', '广州市', '深圳市', '杭州市',
+  '成都市', '武汉市', '西安市', '南京市', '重庆市',
+  '苏州市', '天津市', '长沙市', '郑州市', '东莞市',
+  '青岛市', '沈阳市', '宁波市', '昆明市', '大连市'
+];
+
+export const PARTNER_LEVEL_LABELS: Record<string, string> = {
+  primary: '金牌合伙人',
+  secondary: '银牌合伙人',
+  normal: '普通合伙人'
+};
+
+export const PARTNER_LEVEL_COLORS: Record<string, string> = {
+  primary: '#faad14',
+  secondary: '#1890ff',
+  normal: '#8c8c8c'
+};
 
 export const ORDER_TYPE_COLORS: Record<OrderType, string> = {
   lease: 'warning',

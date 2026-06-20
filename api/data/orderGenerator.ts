@@ -54,8 +54,10 @@ function generateName(): string {
   return random(FIRST_NAMES) + random(LAST_NAMES);
 }
 
-function generateAddress(): string {
-  return random(CITIES) + random(DISTRICTS) + random(STREETS) + randomInt(1, 999) + '号';
+function generateAddress(): { city: string; address: string } {
+  const city = random(CITIES);
+  const address = city + random(DISTRICTS) + random(STREETS) + randomInt(1, 999) + '号';
+  return { city, address };
 }
 
 function generateEmail(name: string): string {
@@ -66,12 +68,14 @@ function generateEmail(name: string): string {
 
 function generateCustomer(): Customer {
   const name = generateName();
+  const { city, address } = generateAddress();
   return {
     id: 'CUS' + Date.now() + randomInt(1000, 9999),
     name,
     phone: generatePhone(),
     email: Math.random() > 0.3 ? generateEmail(name) : undefined,
-    address: generateAddress()
+    address,
+    city
   };
 }
 
@@ -159,11 +163,11 @@ function generateOrder(): Order {
   const customer = generateCustomer();
   const createTime = generateDate(365);
   const updateTime = generateDate(30);
-  
+
   const totalAmount = parseFloat(products.reduce((sum, p) => sum + p.totalPrice, 0).toFixed(2));
   const discountAmount = Math.random() > 0.5 ? parseFloat((totalAmount * randomFloat(0.05, 0.3)).toFixed(2)) : 0;
   const paidAmount = parseFloat((totalAmount - discountAmount).toFixed(2));
-  
+
   const rawAssignee = random(ASSIGNEES);
   const hasAssignee = rawAssignee !== '未指派';
   const assignStages: AssignStage[] = ['assigned', 'store_rejected'];
@@ -173,7 +177,8 @@ function generateOrder(): Order {
     ? parseFloat((paidAmount * randomFloat(0.6, 0.95)).toFixed(2))
     : undefined;
   const isHqTakeover = assignStage === 'assigned' && Math.random() > 0.85;
-  
+  const isCrossCityAssign = hasAssignee && Math.random() > 0.7;
+
   const order: Order = {
     id: 'ORD' + Date.now() + randomInt(1000, 9999),
     orderNo: generateOrderNo(type),
@@ -195,13 +200,15 @@ function generateOrder(): Order {
     assignStage,
     rejectReason: assignStage === 'store_rejected' ? random(['库存不足', '距离太远无法配送', '人手不足', '客户需求特殊无法满足']) : undefined,
     isHqTakeover,
-    sourceChannel: random(SOURCE_CHANNELS)
+    sourceChannel: random(SOURCE_CHANNELS),
+    city: customer.city,
+    isCrossCityAssign
   };
-  
+
   if (type === 'lease') {
     order.leaseInfo = generateLeaseInfo(createTime.split('T')[0]);
   }
-  
+
   return order;
 }
 

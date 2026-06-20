@@ -41,6 +41,14 @@ export interface Customer {
   phone: string;
   email?: string;
   address: string;
+  city: string;
+}
+
+export interface Assignee {
+  id: string;
+  name: string;
+  city: string;
+  level?: 'primary' | 'secondary' | 'normal';
 }
 
 export interface Product {
@@ -86,6 +94,8 @@ export interface Order {
   rejectReason?: string;
   isHqTakeover?: boolean;
   sourceChannel?: string;
+  city: string;
+  isCrossCityAssign?: boolean;
   leaseInfo?: LeaseInfo;
 }
 
@@ -102,10 +112,24 @@ export interface OrderFilterParams {
   endDate?: string;
   minAmount?: number;
   maxAmount?: number;
+  assignStage?: AssignStage | 'all';
+  city?: string;
+  isCrossCityAssign?: boolean;
   page?: number;
   pageSize?: number;
   sortField?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface AssignValidationResult {
+  valid: boolean;
+  message?: string;
+  amount?: number;
+}
+
+export interface CrossCityAssignParams extends AssignOrderParams {
+  allowCrossCity?: boolean;
+  crossCitySurchargeRate?: number;
 }
 
 export interface PaginatedResponse<T> {

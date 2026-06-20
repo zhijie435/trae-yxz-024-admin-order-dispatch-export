@@ -5,6 +5,7 @@ import { OrderService, ValidationError } from './services/OrderService';
 import {
   OrderFilterParams,
   AssignOrderParams,
+  CrossCityAssignParams,
   ORDER_STATUS_LABELS,
   LEASE_STATUS_LABELS,
   ORDER_TYPE_LABELS,
@@ -13,11 +14,13 @@ import {
   ASSIGNEES,
   SOURCE_CHANNELS,
   ASSIGN_STAGE_LABELS,
+  CITIES,
   OrderType,
   OrderStatus,
   LeaseStatus,
   Platform,
-  PaymentMethod
+  PaymentMethod,
+  AssignStage
 } from './types/order';
 
 const app = express();
@@ -31,28 +34,33 @@ interface BatchAssignParams {
   assignee: string;
 }
 
+function parseFilterParams(query: any): OrderFilterParams {
+  return {
+    keyword: query.keyword as string | undefined,
+    type: (query.type as OrderType | 'all') || 'all',
+    status: (query.status as OrderStatus | 'all') || 'all',
+    leaseStatus: (query.leaseStatus as LeaseStatus | 'all') || 'all',
+    platform: (query.platform as Platform | 'all') || 'all',
+    paymentMethod: (query.paymentMethod as PaymentMethod | 'all') || 'all',
+    assignee: query.assignee as string | undefined,
+    sourceChannel: query.sourceChannel as string | undefined,
+    startDate: query.startDate as string | undefined,
+    endDate: query.endDate as string | undefined,
+    minAmount: query.minAmount ? parseFloat(query.minAmount as string) : undefined,
+    maxAmount: query.maxAmount ? parseFloat(query.maxAmount as string) : undefined,
+    assignStage: (query.assignStage as AssignStage | 'all') || 'all',
+    city: query.city as string | undefined,
+    isCrossCityAssign: query.isCrossCityAssign === 'true' ? true : query.isCrossCityAssign === 'false' ? false : undefined,
+    page: query.page ? parseInt(query.page as string) : 1,
+    pageSize: query.pageSize ? parseInt(query.pageSize as string) : 20,
+    sortField: (query.sortField as string) || 'createTime',
+    sortOrder: (query.sortOrder as 'asc' | 'desc') || 'desc'
+  };
+}
+
 app.get('/api/orders', (req, res) => {
   try {
-    const query = req.query;
-    const params: OrderFilterParams = {
-      keyword: query.keyword as string | undefined,
-      type: (query.type as OrderType | 'all') || 'all',
-      status: (query.status as OrderStatus | 'all') || 'all',
-      leaseStatus: (query.leaseStatus as LeaseStatus | 'all') || 'all',
-      platform: (query.platform as Platform | 'all') || 'all',
-      paymentMethod: (query.paymentMethod as PaymentMethod | 'all') || 'all',
-      assignee: query.assignee as string | undefined,
-      sourceChannel: query.sourceChannel as string | undefined,
-      startDate: query.startDate as string | undefined,
-      endDate: query.endDate as string | undefined,
-      minAmount: query.minAmount ? parseFloat(query.minAmount as string) : undefined,
-      maxAmount: query.maxAmount ? parseFloat(query.maxAmount as string) : undefined,
-      page: query.page ? parseInt(query.page as string) : 1,
-      pageSize: query.pageSize ? parseInt(query.pageSize as string) : 20,
-      sortField: (query.sortField as string) || 'createTime',
-      sortOrder: (query.sortOrder as 'asc' | 'desc') || 'desc'
-    };
-
+    const params = parseFilterParams(req.query);
     const result = OrderService.findAll(params);
     res.json({ code: 0, message: 'success', data: result });
   } catch (error) {
@@ -83,22 +91,7 @@ app.get('/api/orders/stats', (_req, res) => {
 
 app.get('/api/orders/export/excel', (req, res) => {
   try {
-    const query = req.query;
-    const params: OrderFilterParams = {
-      keyword: query.keyword as string | undefined,
-      type: (query.type as OrderType | 'all') || 'all',
-      status: (query.status as OrderStatus | 'all') || 'all',
-      leaseStatus: (query.leaseStatus as LeaseStatus | 'all') || 'all',
-      platform: (query.platform as Platform | 'all') || 'all',
-      paymentMethod: (query.paymentMethod as PaymentMethod | 'all') || 'all',
-      assignee: query.assignee as string | undefined,
-      sourceChannel: query.sourceChannel as string | undefined,
-      startDate: query.startDate as string | undefined,
-      endDate: query.endDate as string | undefined,
-      minAmount: query.minAmount ? parseFloat(query.minAmount as string) : undefined,
-      maxAmount: query.maxAmount ? parseFloat(query.maxAmount as string) : undefined
-    };
-
+    const params = parseFilterParams(req.query);
     const buffer = OrderService.exportToExcel(params);
     const filename = `订单列表_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
@@ -304,15 +297,86 @@ app.put('/api/orders/:id/hq-cancel', (req, res) => {
   }
 });
 
+app.post('/api/orders/cross-city-assign', (req, res) => {
+  try {
+    const params = req.body as CrossCityAssignParams;
+    if (!params.orderId || !params.assignee) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    let order;
+    try {
+      order = OrderService.crossCityAssign(params);
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '跨城市指派成功', data: order });
+  } catch (error) {
+    console.error('跨城市指派失败:', error);
+    res.status(500).json({ code: 500, message: '跨城市指派失败' });
+  }
+});
+
+app.put('/api/orders/:id/cross-city-assign', (req, res) => {
+  try {
+    const { assignee, assignAmount, allowCrossCity, crossCitySurchargeRate } = req.body as Omit<CrossCityAssignParams, 'orderId'>;
+    const orderId = req.params.id;
+    if (!orderId || !assignee) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    let order;
+    try {
+      order = OrderService.crossCityAssign({
+        orderId,
+        assignee,
+        assignAmount,
+        allowCrossCity,
+        crossCitySurchargeRate
+      });
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '跨城市指派成功', data: order });
+  } catch (error) {
+    console.error('跨城市指派失败:', error);
+    res.status(500).json({ code: 500, message: '跨城市指派失败' });
+  }
+});
+
+interface BatchAssignParamsV2 extends BatchAssignParams {
+  assignAmount?: number;
+}
+
 app.post('/api/orders/batch-assign', (req, res) => {
   try {
-    const { orderIds, assignee } = req.body as BatchAssignParams;
+    const { orderIds, assignee, assignAmount } = req.body as BatchAssignParamsV2;
     if (!orderIds || orderIds.length === 0 || !assignee) {
       res.status(400).json({ code: 400, message: '缺少必要参数' });
       return;
     }
-    const result = OrderService.batchAssign(orderIds, assignee);
-    res.json({ code: 0, message: `批量指派完成：成功 ${result.success} 条，失败 ${result.failed} 条`, data: result });
+    const result = OrderService.batchAssign(orderIds, assignee, assignAmount);
+    res.json({
+      code: 0,
+      message: `批量指派完成：成功 ${result.success} 条，失败 ${result.failed} 条`,
+      data: result
+    });
   } catch (error) {
     console.error('批量指派失败:', error);
     res.status(500).json({ code: 500, message: '批量指派失败' });
@@ -321,16 +385,31 @@ app.post('/api/orders/batch-assign', (req, res) => {
 
 app.post('/api/orders/batch/assign', (req, res) => {
   try {
-    const { ids, assignee } = req.body as { ids: string[]; assignee: string };
+    const { ids, assignee, assignAmount } = req.body as { ids: string[]; assignee: string; assignAmount?: number };
     if (!ids || ids.length === 0 || !assignee) {
       res.status(400).json({ code: 400, message: '缺少必要参数' });
       return;
     }
-    const result = OrderService.batchAssign(ids, assignee);
-    res.json({ code: 0, message: `批量指派完成：成功 ${result.success} 条，失败 ${result.failed} 条`, data: result });
+    const result = OrderService.batchAssign(ids, assignee, assignAmount);
+    res.json({
+      code: 0,
+      message: `批量指派完成：成功 ${result.success} 条，失败 ${result.failed} 条`,
+      data: result
+    });
   } catch (error) {
     console.error('批量指派失败:', error);
     res.status(500).json({ code: 500, message: '批量指派失败' });
+  }
+});
+
+app.get('/api/assignees', (req, res) => {
+  try {
+    const { city } = req.query;
+    const assignees = OrderService.getAssigneesByCity(city as string | undefined);
+    res.json({ code: 0, message: 'success', data: assignees });
+  } catch (error) {
+    console.error('获取指派人列表失败:', error);
+    res.status(500).json({ code: 500, message: '获取指派人列表失败' });
   }
 });
 
@@ -397,13 +476,15 @@ app.get('/api/orders/:id', (req, res) => {
   }
 });
 
+function transformOptions(record: Record<string, string>): Array<{ value: string; label: string }> {
+  return Object.entries(record).map(([value, label]) => ({ value, label }));
+}
+
+function transformList(list: string[]): Array<{ value: string; label: string }> {
+  return list.map(item => ({ value: item, label: item }));
+}
+
 app.get('/api/constants', (_req, res) => {
-  const transformOptions = (record: Record<string, string>): Array<{ value: string; label: string }> =>
-    Object.entries(record).map(([value, label]) => ({ value, label }));
-
-  const transformList = (list: string[]): Array<{ value: string; label: string }> =>
-    list.map(item => ({ value: item, label: item }));
-
   const options = {
     orderTypes: transformOptions(ORDER_TYPE_LABELS),
     orderStatuses: transformOptions(ORDER_STATUS_LABELS),
@@ -411,7 +492,9 @@ app.get('/api/constants', (_req, res) => {
     platforms: transformOptions(PLATFORM_LABELS),
     paymentMethods: transformOptions(PAYMENT_METHOD_LABELS),
     assignees: transformList(ASSIGNEES),
-    sourceChannels: transformList(SOURCE_CHANNELS)
+    sourceChannels: transformList(SOURCE_CHANNELS),
+    cities: transformList(CITIES),
+    assignStages: transformOptions(ASSIGN_STAGE_LABELS)
   };
 
   res.json({
@@ -422,12 +505,6 @@ app.get('/api/constants', (_req, res) => {
 });
 
 app.get('/api/orders/options/enums', (_req, res) => {
-  const transformOptions = (record: Record<string, string>): Array<{ value: string; label: string }> =>
-    Object.entries(record).map(([value, label]) => ({ value, label }));
-
-  const transformList = (list: string[]): Array<{ value: string; label: string }> =>
-    list.map(item => ({ value: item, label: item }));
-
   const options = {
     orderTypes: transformOptions(ORDER_TYPE_LABELS),
     orderStatuses: transformOptions(ORDER_STATUS_LABELS),
@@ -436,7 +513,8 @@ app.get('/api/orders/options/enums', (_req, res) => {
     paymentMethods: transformOptions(PAYMENT_METHOD_LABELS),
     assignees: transformList(ASSIGNEES),
     sourceChannels: transformList(SOURCE_CHANNELS),
-    assignStages: transformOptions(ASSIGN_STAGE_LABELS)
+    assignStages: transformOptions(ASSIGN_STAGE_LABELS),
+    cities: transformList(CITIES)
   };
 
   res.json({
