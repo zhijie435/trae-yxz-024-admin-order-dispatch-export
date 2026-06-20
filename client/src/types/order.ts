@@ -81,6 +81,7 @@ export interface Order {
   updateTime: string;
   remark?: string;
   assignee?: string;
+  assignAmount?: number;
   sourceChannel?: string;
   leaseInfo?: LeaseInfo;
 }
@@ -113,7 +114,6 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   pageSize: number;
-  totalPages: number;
 }
 
 export interface ApiResponse<T> {
@@ -146,8 +146,8 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   pending_payment: 'warning',
   paid: 'primary',
   processing: 'info',
-  shipped: '',
-  delivered: '',
+  shipped: 'primary',
+  delivered: 'success',
   completed: 'success',
   cancelled: 'info',
   refunded: 'danger'
@@ -158,7 +158,7 @@ export const LEASE_STATUS_COLORS: Record<LeaseStatus, string> = {
   shipped: 'primary',
   in_use: 'success',
   returning: 'info',
-  returned: '',
+  returned: 'success',
   completed: 'success',
   overdue: 'danger'
 };

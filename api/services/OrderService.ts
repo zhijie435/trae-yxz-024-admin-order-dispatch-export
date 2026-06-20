@@ -10,7 +10,8 @@ import {
   ORDER_TYPE_LABELS,
   PLATFORM_LABELS,
   PAYMENT_METHOD_LABELS,
-  OPERATION_TYPE_LABELS
+  OPERATION_TYPE_LABELS,
+  ASSIGNEE_HQ_TAKEOVER
 } from '../types/order';
 import { mockOrders } from '../data/orderGenerator';
 import { generateOperationLogs } from '../data/operationLogGenerator';
@@ -121,6 +122,34 @@ export class OrderService {
     return orders.find(o => o.id === id);
   }
 
+  static updateStatus(orderId: string, status: OrderStatus): Order | null {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return null;
+    const beforeStatus = order.status;
+    if (beforeStatus === status) return order;
+
+    order.status = status;
+    order.updateTime = new Date().toISOString();
+
+    let opType: OperationType = 'remark';
+    if (status === 'processing') opType = 'process';
+    else if (status === 'shipped') opType = 'ship';
+    else if (status === 'delivered') opType = 'deliver';
+    else if (status === 'completed') opType = 'complete';
+    else if (status === 'cancelled') opType = 'cancel';
+    else if (status === 'refunded') opType = 'refund';
+
+    this.appendLog(order, opType, {
+      beforeValue: beforeStatus,
+      afterValue: status,
+      operator: '管理员',
+      operatorRole: '管理员',
+      remark: `订单状态由「${beforeStatus}」变更为「${status}」`
+    });
+
+    return order;
+  }
+
   static assign(params: AssignOrderParams): Order | null {
     const { orderId, assignee, assignAmount } = params;
     const order = orders.find(o => o.id === orderId);
@@ -137,19 +166,161 @@ export class OrderService {
     }
 
     const beforeAssignee = order.assignee || '未指派';
+    const isHq = assignee === ASSIGNEE_HQ_TAKEOVER;
     order.assignee = assignee;
     order.assignAmount = parseFloat(amount.toFixed(2));
+    order.assignStage = 'assigned';
+    order.isHqTakeover = isHq || order.isHqTakeover;
     order.updateTime = new Date().toISOString();
 
-    this.appendLog(order, beforeAssignee !== '未指派' ? 'reassign' : 'assign', {
+    const opType: OperationType =
+      beforeAssignee !== '未指派' ? 'reassign' : 'assign';
+    this.appendLog(order, opType, {
       beforeValue: beforeAssignee,
       afterValue: assignee,
       operator: '管理员',
       operatorRole: '管理员',
       remark:
         beforeAssignee !== '未指派'
-          ? `由 ${beforeAssignee} 改派为 ${assignee}，指派金额 ¥${order.assignAmount.toFixed(2)}`
-          : `订单指派给 ${assignee}，指派金额 ¥${order.assignAmount.toFixed(2)}`
+          ? `由 ${beforeAssignee} 改派为 ${assignee}${isHq ? '（总部兜底）' : ''}，指派金额 ¥${order.assignAmount.toFixed(2)}`
+          : `订单指派给 ${assignee}${isHq ? '（总部兜底）' : ''}，指派金额 ¥${order.assignAmount.toFixed(2)}`
+    });
+
+    return order;
+  }
+
+  static rejectByStore(orderId: string, reason: string): Order | null {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return null;
+    if (order.assignStage !== 'assigned') {
+      throw new ValidationError('仅已指派状态的订单允许门店拒单');
+    }
+    if (!reason || !reason.trim()) {
+      throw new ValidationError('请填写拒单原因');
+    }
+
+    const beforeStage = order.assignStage || 'pending_assign';
+    const beforeAssignee = order.assignee || '未指派';
+    order.assignStage = 'store_rejected';
+    order.rejectReason = reason.trim();
+    order.assignee = '未指派';
+    order.assignAmount = undefined;
+    order.updateTime = new Date().toISOString();
+
+    this.appendLog(order, 'store_reject', {
+      beforeValue: `${beforeAssignee} (${beforeStage})`,
+      afterValue: '门店拒单',
+      operator: beforeAssignee !== '未指派' ? beforeAssignee : '门店',
+      operatorRole: '门店',
+      remark: `门店拒单，原因：${reason.trim()}`
+    });
+
+    return order;
+  }
+
+  static hqTakeover(orderId: string, assignAmount: number): Order | null {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return null;
+    if (order.assignStage !== 'store_rejected') {
+      throw new ValidationError('仅门店拒单状态的订单可执行总部兜底接单');
+    }
+    const amount = Number(assignAmount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      throw new ValidationError('请输入有效的指派金额');
+    }
+    if (amount > order.totalAmount) {
+      throw new ValidationError(
+        `指派金额不能大于客户下单金额（¥${order.totalAmount.toFixed(2)}）`
+      );
+    }
+
+    order.assignee = ASSIGNEE_HQ_TAKEOVER;
+    order.assignAmount = parseFloat(amount.toFixed(2));
+    order.assignStage = 'hq_handled';
+    order.isHqTakeover = true;
+    order.rejectReason = undefined;
+    order.updateTime = new Date().toISOString();
+
+    this.appendLog(order, 'hq_takeover', {
+      beforeValue: '门店拒单',
+      afterValue: ASSIGNEE_HQ_TAKEOVER,
+      operator: '管理员',
+      operatorRole: '总部管理员',
+      remark: `总部兜底接单，指派金额 ¥${order.assignAmount.toFixed(2)}`
+    });
+
+    return order;
+  }
+
+  static hqTransfer(orderId: string, assignee: string, assignAmount: number): Order | null {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return null;
+    if (order.assignStage !== 'store_rejected') {
+      throw new ValidationError('仅门店拒单状态的订单可执行总部转派');
+    }
+    if (!assignee) {
+      throw new ValidationError('请选择转派对象');
+    }
+    if (assignee === ASSIGNEE_HQ_TAKEOVER) {
+      throw new ValidationError('请使用「总部兜底接单」功能指派给总部');
+    }
+    const amount = Number(assignAmount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      throw new ValidationError('请输入有效的指派金额');
+    }
+    if (amount > order.totalAmount) {
+      throw new ValidationError(
+        `指派金额不能大于客户下单金额（¥${order.totalAmount.toFixed(2)}）`
+      );
+    }
+
+    order.assignee = assignee;
+    order.assignAmount = parseFloat(amount.toFixed(2));
+    order.assignStage = 'hq_handled';
+    order.isHqTakeover = false;
+    order.rejectReason = undefined;
+    order.updateTime = new Date().toISOString();
+
+    this.appendLog(order, 'hq_transfer', {
+      beforeValue: '门店拒单',
+      afterValue: assignee,
+      operator: '管理员',
+      operatorRole: '总部管理员',
+      remark: `总部转派给 ${assignee}，指派金额 ¥${order.assignAmount.toFixed(2)}`
+    });
+
+    return order;
+  }
+
+  static hqCancel(orderId: string, reason: string): Order | null {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return null;
+    if (order.assignStage !== 'store_rejected') {
+      throw new ValidationError('仅门店拒单状态的订单可执行沟通取消');
+    }
+    if (!reason || !reason.trim()) {
+      throw new ValidationError('请填写沟通取消原因');
+    }
+
+    const beforeStatus = order.status;
+    order.status = 'cancelled';
+    order.assignStage = 'hq_handled';
+    order.rejectReason = undefined;
+    order.updateTime = new Date().toISOString();
+
+    this.appendLog(order, 'hq_cancel', {
+      beforeValue: '门店拒单',
+      afterValue: '已取消',
+      operator: '管理员',
+      operatorRole: '总部管理员',
+      remark: `总部沟通取消订单，原因：${reason.trim()}`
+    });
+    this.appendLog(order, 'cancel', {
+      beforeValue: beforeStatus,
+      afterValue: 'cancelled',
+      operator: '管理员',
+      operatorRole: '总部管理员',
+      remark: `沟通取消，原因为：${reason.trim()}`
     });
 
     return order;

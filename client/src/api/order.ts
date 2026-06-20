@@ -26,8 +26,23 @@ export async function getOrders(
   filter: OrderFilter,
   pagination: PaginationParams
 ): Promise<ApiResponse<PaginatedResponse<Order>>> {
+  const keywordParts: string[] = [];
+  if (filter.orderNo) keywordParts.push(filter.orderNo);
+  if (filter.customerName) keywordParts.push(filter.customerName);
+  if (filter.customerPhone) keywordParts.push(filter.customerPhone);
+  
   const params = {
-    ...filter,
+    type: filter.type || 'all',
+    status: filter.status || 'all',
+    leaseStatus: filter.leaseStatus || 'all',
+    platform: filter.platform || 'all',
+    paymentMethod: filter.paymentMethod || 'all',
+    assignee: filter.assignee,
+    startDate: filter.startDate,
+    endDate: filter.endDate,
+    minAmount: filter.minAmount,
+    maxAmount: filter.maxAmount,
+    keyword: keywordParts.length > 0 ? keywordParts.join(' ') : undefined,
     ...pagination
   };
   return request.get('/orders', { params });
@@ -38,8 +53,8 @@ export async function getOrderById(id: string): Promise<ApiResponse<Order>> {
 }
 
 export async function getOrderStats(): Promise<any> {
-  const res: ApiResponse<any> = await request.get('/orders/stats');
-  return res.code === 0 ? res.data : null;
+  const res: ApiResponse<any> = await request.get('/orders/statistics');
+  return res.data;
 }
 
 export async function getEnumOptions(): Promise<ApiResponse<EnumOptions>> {
@@ -47,7 +62,25 @@ export async function getEnumOptions(): Promise<ApiResponse<EnumOptions>> {
 }
 
 export async function exportOrdersToExcel(filter: OrderFilter): Promise<void> {
-  const params = { ...filter };
+  const keywordParts: string[] = [];
+  if (filter.orderNo) keywordParts.push(filter.orderNo);
+  if (filter.customerName) keywordParts.push(filter.customerName);
+  if (filter.customerPhone) keywordParts.push(filter.customerPhone);
+  
+  const params = {
+    type: filter.type || 'all',
+    status: filter.status || 'all',
+    leaseStatus: filter.leaseStatus || 'all',
+    platform: filter.platform || 'all',
+    paymentMethod: filter.paymentMethod || 'all',
+    assignee: filter.assignee,
+    startDate: filter.startDate,
+    endDate: filter.endDate,
+    minAmount: filter.minAmount,
+    maxAmount: filter.maxAmount,
+    keyword: keywordParts.length > 0 ? keywordParts.join(' ') : undefined
+  };
+  
   const response = await axios.get('/api/orders/export/excel', {
     params,
     responseType: 'blob'
@@ -71,8 +104,8 @@ export async function exportOrdersToExcel(filter: OrderFilter): Promise<void> {
   window.URL.revokeObjectURL(url);
 }
 
-export async function assignOrder(orderId: string, assignee: string): Promise<ApiResponse<Order>> {
-  return request.put(`/orders/${orderId}/assign`, { assignee });
+export async function assignOrder(orderId: string, assignee: string, assignAmount?: number): Promise<ApiResponse<Order>> {
+  return request.put(`/orders/${orderId}/assign`, { assignee, assignAmount });
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<ApiResponse<Order>> {

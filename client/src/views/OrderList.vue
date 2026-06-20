@@ -647,19 +647,33 @@
         <p style="margin-bottom: 16px;">
           订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
         </p>
-        <el-select 
-          v-model="selectedAssignee" 
-          placeholder="请选择指派人" 
-          style="width: 100%"
-          size="large"
-        >
-          <el-option
-            v-for="item in enumOptions?.assignees"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
+        <el-form label-width="80px">
+          <el-form-item label="指派人">
+            <el-select 
+              v-model="selectedAssignee" 
+              placeholder="请选择指派人" 
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in enumOptions?.assignees"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="指派金额">
+            <el-input-number
+              v-model="assignAmount"
+              :min="0"
+              :precision="2"
+              :step="100"
+              :controls="true"
+              style="width: 100%"
+              placeholder="请输入指派金额"
+            />
+          </el-form-item>
+        </el-form>
       </template>
       <template #footer>
         <el-button @click="assignDialogVisible = false">取消</el-button>
@@ -731,6 +745,7 @@ const exporting = ref(false)
 const assigning = ref(false)
 const statusUpdating = ref(false)
 const showAdvancedFilter = ref(false)
+const assignAmount = ref<number>(0)
 
 const enumOptions = ref<EnumOptions | null>(null)
 const dateRange = ref<string[]>([])
@@ -763,8 +778,7 @@ const paginatedData = reactive<PaginatedResponse<Order>>({
   list: [],
   total: 0,
   page: 1,
-  pageSize: 20,
-  totalPages: 0
+  pageSize: 20
 })
 
 const detailDialogVisible = ref(false)
@@ -796,7 +810,6 @@ const fetchOrders = async () => {
     paginatedData.total = res.data.total
     paginatedData.page = res.data.page
     paginatedData.pageSize = res.data.pageSize
-    paginatedData.totalPages = res.data.totalPages
   } catch (e: any) {
     ElMessage.error(e.message || '获取订单列表失败')
   } finally {
@@ -887,6 +900,7 @@ const handleViewDetail = (row: Order) => {
 const handleAssign = (row: Order) => {
   currentOrder.value = row
   selectedAssignee.value = row.assignee || ''
+  assignAmount.value = row.assignAmount || 0
   assignDialogVisible.value = true
 }
 
@@ -899,7 +913,7 @@ const confirmAssign = async () => {
   
   assigning.value = true
   try {
-    await assignOrder(currentOrder.value.id, selectedAssignee.value)
+    await assignOrder(currentOrder.value.id, selectedAssignee.value, assignAmount.value)
     ElMessage.success('指派成功')
     assignDialogVisible.value = false
     fetchOrders()

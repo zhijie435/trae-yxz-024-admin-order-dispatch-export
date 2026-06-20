@@ -82,6 +82,9 @@ export interface Order {
   remark?: string;
   assignee?: string;
   assignAmount?: number;
+  assignStage?: AssignStage;
+  rejectReason?: string;
+  isHqTakeover?: boolean;
   sourceChannel?: string;
   leaseInfo?: LeaseInfo;
 }
@@ -118,6 +121,12 @@ export interface AssignOrderParams {
   assignAmount?: number;
 }
 
+export type AssignStage =
+  | 'pending_assign'
+  | 'assigned'
+  | 'store_rejected'
+  | 'hq_handled';
+
 export type OperationType =
   | 'create'
   | 'pay'
@@ -132,7 +141,11 @@ export type OperationType =
   | 'remark'
   | 'lease_start'
   | 'lease_return'
-  | 'lease_overdue';
+  | 'lease_overdue'
+  | 'store_reject'
+  | 'hq_takeover'
+  | 'hq_transfer'
+  | 'hq_cancel';
 
 export interface OperationLog {
   id: string;
@@ -162,7 +175,11 @@ export const OPERATION_TYPE_LABELS: Record<OperationType, string> = {
   remark: '更新备注',
   lease_start: '租赁开始',
   lease_return: '租赁归还',
-  lease_overdue: '租赁逾期'
+  lease_overdue: '租赁逾期',
+  store_reject: '门店拒单',
+  hq_takeover: '总部兜底接单',
+  hq_transfer: '总部转派',
+  hq_cancel: '沟通取消订单'
 };
 
 export const OPERATION_TYPE_COLORS: Record<OperationType, string> = {
@@ -179,8 +196,28 @@ export const OPERATION_TYPE_COLORS: Record<OperationType, string> = {
   remark: '#b37feb',
   lease_start: '#1890ff',
   lease_return: '#13c2c2',
-  lease_overdue: '#f5222d'
+  lease_overdue: '#f5222d',
+  store_reject: '#f5222d',
+  hq_takeover: '#722ed1',
+  hq_transfer: '#13c2c2',
+  hq_cancel: '#8c8c8c'
 };
+
+export const ASSIGN_STAGE_LABELS: Record<AssignStage, string> = {
+  pending_assign: '待指派',
+  assigned: '已指派',
+  store_rejected: '门店拒单',
+  hq_handled: '总部已处理'
+};
+
+export const ASSIGN_STAGE_COLORS: Record<AssignStage, string> = {
+  pending_assign: '#909399',
+  assigned: '#409eff',
+  store_rejected: '#f56c6c',
+  hq_handled: '#67c23a'
+};
+
+export const ASSIGNEE_HQ_TAKEOVER = '总部兜底';
 
 export const OPERATOR_ROLES = ['系统', '客服', '仓管', '财务', '运营', '管理员'];
 
@@ -251,7 +288,8 @@ export const LEASE_STATUS_COLORS: Record<LeaseStatus, string> = {
 
 export const ASSIGNEES = [
   '张三', '李四', '王五', '赵六', '钱七',
-  '孙八', '周九', '吴十', '郑十一', '王十二'
+  '孙八', '周九', '吴十', '郑十一', '王十二',
+  ASSIGNEE_HQ_TAKEOVER
 ];
 
 export const SOURCE_CHANNELS = [
