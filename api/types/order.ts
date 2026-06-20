@@ -81,6 +81,7 @@ export interface Order {
   updateTime: string;
   remark?: string;
   assignee?: string;
+  assignAmount?: number;
   sourceChannel?: string;
   leaseInfo?: LeaseInfo;
 }
@@ -114,6 +115,7 @@ export interface PaginatedResponse<T> {
 export interface AssignOrderParams {
   orderId: string;
   assignee: string;
+  assignAmount?: number;
 }
 
 export type OperationType =

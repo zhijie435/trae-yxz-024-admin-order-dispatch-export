@@ -1,6 +1,6 @@
 export type OrderType = 'lease' | 'sale';
 
-export type OrderStatus =
+export type OrderStatus = 
   | 'pending_payment'
   | 'paid'
   | 'processing'
@@ -10,7 +10,7 @@ export type OrderStatus =
   | 'cancelled'
   | 'refunded';
 
-export type LeaseStatus =
+export type LeaseStatus = 
   | 'pending_shipment'
   | 'shipped'
   | 'in_use'
@@ -19,14 +19,14 @@ export type LeaseStatus =
   | 'completed'
   | 'overdue';
 
-export type PaymentMethod =
+export type PaymentMethod = 
   | 'alipay'
   | 'wechat'
   | 'bank_transfer'
   | 'credit_card'
   | 'cash';
 
-export type Platform =
+export type Platform = 
   | 'official_website'
   | 'wechat_mini'
   | 'taobao'
@@ -50,7 +50,7 @@ export interface Product {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  imageUrl?: string;
+  imageUrl: string;
 }
 
 export interface LeaseInfo {
@@ -85,21 +85,25 @@ export interface Order {
   leaseInfo?: LeaseInfo;
 }
 
-export interface OrderFilterParams {
-  keyword?: string;
-  type?: OrderType | 'all';
-  status?: OrderStatus | 'all';
-  leaseStatus?: LeaseStatus | 'all';
-  platform?: Platform | 'all';
-  paymentMethod?: PaymentMethod | 'all';
-  assignee?: string;
-  sourceChannel?: string;
+export interface OrderFilter {
+  type?: OrderType;
+  status?: OrderStatus;
+  platform?: Platform;
+  paymentMethod?: PaymentMethod;
+  orderNo?: string;
+  customerName?: string;
+  customerPhone?: string;
   startDate?: string;
   endDate?: string;
   minAmount?: number;
   maxAmount?: number;
-  page?: number;
-  pageSize?: number;
+  assignee?: string;
+  leaseStatus?: LeaseStatus;
+}
+
+export interface PaginationParams {
+  page: number;
+  pageSize: number;
   sortField?: string;
   sortOrder?: 'asc' | 'desc';
 }
@@ -109,6 +113,7 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   pageSize: number;
+  totalPages: number;
 }
 
 export interface ApiResponse<T> {
@@ -117,95 +122,64 @@ export interface ApiResponse<T> {
   data: T;
 }
 
-export interface OrderStatistics {
-  total: number;
-  leaseCount: number;
-  saleCount: number;
-  totalAmount: number;
-  unassigned: number;
-  statusStats: Record<string, number>;
-  platformStats: Record<string, number>;
+export interface SelectOption {
+  value: string;
+  label: string;
 }
 
-export interface ConstantsData {
-  orderTypes: Record<string, string>;
-  orderStatuses: Record<string, string>;
-  leaseStatuses: Record<string, string>;
-  platforms: Record<string, string>;
-  paymentMethods: Record<string, string>;
-  assignees: string[];
-  sourceChannels: string[];
+export interface EnumOptions {
+  orderTypes: SelectOption[];
+  orderStatuses: SelectOption[];
+  leaseStatuses: SelectOption[];
+  platforms: SelectOption[];
+  paymentMethods: SelectOption[];
+  assignees: SelectOption[];
+  sourceChannels: SelectOption[];
 }
 
-export type OperationType =
-  | 'create'
-  | 'pay'
-  | 'process'
-  | 'ship'
-  | 'deliver'
-  | 'complete'
-  | 'cancel'
-  | 'refund'
-  | 'assign'
-  | 'reassign'
-  | 'remark'
-  | 'lease_start'
-  | 'lease_return'
-  | 'lease_overdue';
-
-export interface OperationLog {
-  id: string;
-  orderId: string;
-  orderNo: string;
-  operationType: OperationType;
-  operationName: string;
-  operator: string;
-  operatorRole: string;
-  operateTime: string;
-  beforeValue?: string;
-  afterValue?: string;
-  remark?: string;
-}
-
-export interface OrderDetail {
-  order: Order;
-  logs: OperationLog[];
-}
-
-export const OPERATION_TYPE_COLORS: Record<OperationType, string> = {
-  create: '#52c41a',
-  pay: '#1890ff',
-  process: '#722ed1',
-  ship: '#13c2c2',
-  deliver: '#2f54eb',
-  complete: '#52c41a',
-  cancel: '#8c8c8c',
-  refund: '#f5222d',
-  assign: '#fa8c16',
-  reassign: '#faad14',
-  remark: '#b37feb',
-  lease_start: '#1890ff',
-  lease_return: '#13c2c2',
-  lease_overdue: '#f5222d'
+export const ORDER_TYPE_COLORS: Record<OrderType, string> = {
+  lease: 'warning',
+  sale: 'success'
 };
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
-  pending_payment: '#faad14',
-  paid: '#1890ff',
-  processing: '#722ed1',
-  shipped: '#13c2c2',
-  delivered: '#2f54eb',
-  completed: '#52c41a',
-  cancelled: '#8c8c8c',
-  refunded: '#f5222d'
+  pending_payment: 'warning',
+  paid: 'primary',
+  processing: 'info',
+  shipped: '',
+  delivered: '',
+  completed: 'success',
+  cancelled: 'info',
+  refunded: 'danger'
 };
 
 export const LEASE_STATUS_COLORS: Record<LeaseStatus, string> = {
-  pending_shipment: '#faad14',
-  shipped: '#1890ff',
-  in_use: '#52c41a',
-  returning: '#13c2c2',
-  returned: '#2f54eb',
-  completed: '#722ed1',
-  overdue: '#f5222d'
+  pending_shipment: 'warning',
+  shipped: 'primary',
+  in_use: 'success',
+  returning: 'info',
+  returned: '',
+  completed: 'success',
+  overdue: 'danger'
 };
+
+export function formatDate(date: string | undefined): string {
+  if (!date) return '-';
+  return new Date(date).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+export function formatAmount(amount: number): string {
+  return `¥${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+export function getLabelFromOptions(options: SelectOption[], value: string): string {
+  const option = options.find(o => o.value === value);
+  return option ? option.label : value;
+}

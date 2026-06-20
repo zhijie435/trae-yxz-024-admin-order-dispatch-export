@@ -20,6 +20,13 @@ let orders: Order[] = [...mockOrders];
 let operationLogMap: Map<string, OperationLog[]> = generateOperationLogs(orders);
 let logSeq = 0;
 
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
 export class OrderService {
   static findAll(params: OrderFilterParams = {}): PaginatedResponse<Order> {
     const {
@@ -115,12 +122,23 @@ export class OrderService {
   }
 
   static assign(params: AssignOrderParams): Order | null {
-    const { orderId, assignee } = params;
+    const { orderId, assignee, assignAmount } = params;
     const order = orders.find(o => o.id === orderId);
     if (!order) return null;
 
+    const amount = Number(assignAmount);
+    if (assignAmount === undefined || assignAmount === null || Number.isNaN(amount) || amount <= 0) {
+      throw new ValidationError('请输入有效的指派金额');
+    }
+    if (amount > order.totalAmount) {
+      throw new ValidationError(
+        `指派金额不能大于客户下单金额（¥${order.totalAmount.toFixed(2)}）`
+      );
+    }
+
     const beforeAssignee = order.assignee || '未指派';
     order.assignee = assignee;
+    order.assignAmount = parseFloat(amount.toFixed(2));
     order.updateTime = new Date().toISOString();
 
     this.appendLog(order, beforeAssignee !== '未指派' ? 'reassign' : 'assign', {
@@ -128,7 +146,10 @@ export class OrderService {
       afterValue: assignee,
       operator: '管理员',
       operatorRole: '管理员',
-      remark: beforeAssignee !== '未指派' ? `由 ${beforeAssignee} 改派为 ${assignee}` : `订单指派给 ${assignee}`
+      remark:
+        beforeAssignee !== '未指派'
+          ? `由 ${beforeAssignee} 改派为 ${assignee}，指派金额 ¥${order.assignAmount.toFixed(2)}`
+          : `订单指派给 ${assignee}，指派金额 ¥${order.assignAmount.toFixed(2)}`
     });
 
     return order;

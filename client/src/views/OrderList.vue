@@ -1,889 +1,1045 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h1>订单管理中心</h1>
-      <div class="sub-title">全平台订单统一管理，支持多维度筛选、指派与批量导出</div>
-    </div>
+  <div class="order-list-page">
+    <el-card class="filter-card" shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span class="title">
+            <el-icon><Filter /></el-icon>
+            多维度筛选
+          </span>
+          <div class="header-actions">
+            <el-button @click="toggleAdvancedFilter">
+              <el-icon><Setting /></el-icon>
+              {{ showAdvancedFilter ? '收起高级筛选' : '展开高级筛选' }}
+            </el-button>
+            <el-button @click="resetFilter">
+              <el-icon><RefreshRight /></el-icon>
+              重置
+            </el-button>
+          </div>
+        </div>
+      </template>
 
-    <el-row :gutter="16" style="margin-bottom: 20px">
-      <el-col :span="4">
-        <div class="stat-card">
-          <el-icon :size="32" color="#1890ff"><DataLine /></el-icon>
-          <div class="stat-value" style="color: #1890ff">{{ statistics.total }}</div>
-          <div class="stat-label">订单总数</div>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card">
-          <el-icon :size="32" color="#52c41a"><Goods /></el-icon>
-          <div class="stat-value" style="color: #52c41a">{{ statistics.saleCount }}</div>
-          <div class="stat-label">销售单</div>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card">
-          <el-icon :size="32" color="#722ed1"><Clock /></el-icon>
-          <div class="stat-value" style="color: #722ed1">{{ statistics.leaseCount }}</div>
-          <div class="stat-label">租赁单</div>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card">
-          <el-icon :size="32" color="#fa8c16"><Wallet /></el-icon>
-          <div class="stat-value" style="color: #fa8c16">¥{{ formatMoney(statistics.totalAmount) }}</div>
-          <div class="stat-label">交易总额</div>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card">
-          <el-icon :size="32" color="#f5222d"><User /></el-icon>
-          <div class="stat-value" style="color: #f5222d">{{ statistics.unassigned }}</div>
-          <div class="stat-label">待指派订单</div>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card">
-          <el-icon :size="32" color="#13c2c2"><List /></el-icon>
-          <div class="stat-value" style="color: #13c2c2">{{ total }}</div>
-          <div class="stat-label">当前筛选结果</div>
-        </div>
-      </el-col>
-    </el-row>
-
-    <div class="card filter-card">
-      <el-form :model="filterForm" label-width="90px" size="default">
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="关键词">
-              <el-input
-                v-model="filterForm.keyword"
-                placeholder="订单号/客户姓名/电话/商品名称/SKU"
-                clearable
-                @keyup.enter="handleSearch"
-              >
-                <template #prefix>
-                  <el-icon><Search /></el-icon>
-                </template>
-              </el-input>
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
+      <el-form :model="filterForm" label-width="100px" @submit.prevent>
+        <el-row :gutter="24">
+          <el-col :span="6">
             <el-form-item label="订单类型">
-              <el-select v-model="filterForm.type" placeholder="全部" clearable style="width: 100%">
-                <el-option label="全部" value="all" />
-                <el-option label="租赁单" value="lease" />
-                <el-option label="销售单" value="sale" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
-            <el-form-item label="订单状态">
-              <el-select v-model="filterForm.status" placeholder="全部" clearable style="width: 100%">
-                <el-option label="全部" value="all" />
-                <el-option
-                  v-for="(label, key) in constants.orderStatuses"
-                  :key="key"
-                  :label="label"
-                  :value="key"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
-            <el-form-item label="租赁状态">
-              <el-select v-model="filterForm.leaseStatus" placeholder="全部" clearable style="width: 100%">
-                <el-option label="全部" value="all" />
-                <el-option
-                  v-for="(label, key) in constants.leaseStatuses"
-                  :key="key"
-                  :label="label"
-                  :value="key"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
-            <el-form-item label="来源平台">
-              <el-select v-model="filterForm.platform" placeholder="全部" clearable style="width: 100%">
-                <el-option label="全部" value="all" />
-                <el-option
-                  v-for="(label, key) in constants.platforms"
-                  :key="key"
-                  :label="label"
-                  :value="key"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
-            <el-form-item label="支付方式">
-              <el-select v-model="filterForm.paymentMethod" placeholder="全部" clearable style="width: 100%">
-                <el-option label="全部" value="all" />
-                <el-option
-                  v-for="(label, key) in constants.paymentMethods"
-                  :key="key"
-                  :label="label"
-                  :value="key"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
-            <el-form-item label="指派人员">
-              <el-select v-model="filterForm.assignee" placeholder="全部" clearable style="width: 100%">
-                <el-option
-                  v-for="name in constants.assignees"
-                  :key="name"
-                  :label="name"
-                  :value="name"
-                />
-                <el-option label="未指派" value="未指派" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="4">
-            <el-form-item label="来源渠道">
-              <el-select v-model="filterForm.sourceChannel" placeholder="全部" clearable style="width: 100%">
-                <el-option
-                  v-for="channel in constants.sourceChannels"
-                  :key="channel"
-                  :label="channel"
-                  :value="channel"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="下单时间">
-              <el-date-picker
-                v-model="dateRange"
-                type="daterange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                value-format="YYYY-MM-DD"
+              <el-select 
+                v-model="filterForm.type" 
+                placeholder="全部" 
+                clearable
                 style="width: 100%"
+              >
+                <el-option
+                  v-for="item in enumOptions?.orderTypes"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="订单状态">
+              <el-select 
+                v-model="filterForm.status" 
+                placeholder="全部" 
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in enumOptions?.orderStatuses"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="所属平台">
+              <el-select 
+                v-model="filterForm.platform" 
+                placeholder="全部" 
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in enumOptions?.platforms"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="支付方式">
+              <el-select 
+                v-model="filterForm.paymentMethod" 
+                placeholder="全部" 
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in enumOptions?.paymentMethods"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="24">
+          <el-col :span="6">
+            <el-form-item label="订单编号">
+              <el-input 
+                v-model="filterForm.orderNo" 
+                placeholder="请输入订单编号" 
+                clearable
               />
             </el-form-item>
           </el-col>
           <el-col :span="6">
-            <el-form-item label="金额区间">
-              <el-input-group>
-                <el-input-number
-                  v-model="filterForm.minAmount"
-                  :min="0"
-                  :controls="false"
-                  placeholder="最低金额"
-                  style="width: 50%"
-                />
-                <el-input-number
-                  v-model="filterForm.maxAmount"
-                  :min="0"
-                  :controls="false"
-                  placeholder="最高金额"
-                  style="width: 50%"
-                />
-              </el-input-group>
+            <el-form-item label="客户姓名">
+              <el-input 
+                v-model="filterForm.customerName" 
+                placeholder="请输入客户姓名" 
+                clearable
+              />
             </el-form-item>
           </el-col>
-          <el-col :span="2">
-            <el-form-item label-width="0">
-              <el-space>
-                <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
-                <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-              </el-space>
+          <el-col :span="6">
+            <el-form-item label="联系电话">
+              <el-input 
+                v-model="filterForm.customerPhone" 
+                placeholder="请输入联系电话" 
+                clearable
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="指派人">
+              <el-select 
+                v-model="filterForm.assignee" 
+                placeholder="全部" 
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in enumOptions?.assignees"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-collapse-transition>
+          <div v-show="showAdvancedFilter">
+            <el-row :gutter="24">
+              <el-col :span="8">
+                <el-form-item label="下单时间">
+                  <el-date-picker
+                    v-model="dateRange"
+                    type="daterange"
+                    range-separator="至"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="金额范围">
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <el-input-number 
+                      v-model="filterForm.minAmount" 
+                      :min="0" 
+                      placeholder="最小"
+                      controls-position="right"
+                      style="flex: 1"
+                    />
+                    <span>-</span>
+                    <el-input-number 
+                      v-model="filterForm.maxAmount" 
+                      :min="0" 
+                      placeholder="最大"
+                      controls-position="right"
+                      style="flex: 1"
+                    />
+                  </div>
+                </el-form-item>
+              </el-col>
+              <el-col :span="5">
+                <el-form-item label="租赁状态">
+                  <el-select 
+                    v-model="filterForm.leaseStatus" 
+                    placeholder="全部" 
+                    clearable
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in enumOptions?.leaseStatuses"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="5">
+                <el-form-item label="来源渠道">
+                  <el-select 
+                    v-model="sourceChannelFilter" 
+                    placeholder="全部" 
+                    clearable
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in enumOptions?.sourceChannels"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
+        </el-collapse-transition>
+
+        <el-row justify="end">
+          <el-button type="primary" @click="handleSearch" :loading="loading">
+            <el-icon><Search /></el-icon>
+            查询
+          </el-button>
+        </el-row>
       </el-form>
-    </div>
+    </el-card>
 
-    <div class="card">
-      <div v-if="selectedOrders.length > 0" class="selected-bar">
-        <span>
-          已选择 <span class="selected-count">{{ selectedOrders.length }}</span> 条订单
-        </span>
-        <el-space>
-          <el-select
-            v-model="batchAssignee"
-            placeholder="选择指派人"
-            style="width: 150px"
-          >
-            <el-option
-              v-for="name in constants.assignees"
-              :key="name"
-              :label="name"
-              :value="name"
-            />
-          </el-select>
-          <el-button type="primary" :icon="UserFilled" @click="handleBatchAssign" :disabled="!batchAssignee">
-            批量指派
-          </el-button>
-          <el-button type="success" :icon="Download" @click="handleExportSelected">
-            导出所选
-          </el-button>
-          <el-button @click="clearSelection">取消选择</el-button>
-        </el-space>
-      </div>
-
-      <div class="table-toolbar">
-        <el-space>
-          <el-button type="success" :icon="Download" @click="handleExportAll">
-            导出当前筛选结果
-          </el-button>
-          <el-button :icon="RefreshRight" @click="loadOrders">刷新</el-button>
-        </el-space>
-        <el-space>
-          <el-select
-            v-model="pageSize"
-            style="width: 120px"
-            @change="handlePageSizeChange"
-          >
-            <el-option :value="10" label="10条/页" />
-            <el-option :value="20" label="20条/页" />
-            <el-option :value="50" label="50条/页" />
-            <el-option :value="100" label="100条/页" />
-          </el-select>
-        </el-space>
-      </div>
+    <el-card class="table-card" shadow="never">
+      <template #header>
+        <div class="table-header">
+          <div class="table-title">
+            <el-icon><List /></el-icon>
+            订单列表
+            <el-tag type="info" class="total-tag">共 {{ paginatedData.total }} 条</el-tag>
+          </div>
+          <div class="table-actions">
+            <el-button type="success" @click="handleExport" :loading="exporting">
+              <el-icon><Download /></el-icon>
+              导出Excel
+            </el-button>
+            <el-button type="primary" @click="handleRefresh">
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+          </div>
+        </div>
+      </template>
 
       <el-table
         v-loading="loading"
-        :data="orders"
-        row-key="id"
+        :data="paginatedData.list"
         border
         stripe
-        @selection-change="handleSelectionChange"
-        @sort-change="handleSortChange"
         style="width: 100%"
+        @sort-change="handleSortChange"
       >
-        <el-table-column type="selection" width="50" align="center" />
-        <el-table-column label="序号" type="index" width="60" align="center" :index="indexMethod" />
-
-        <el-table-column label="订单信息" min-width="240">
+        <el-table-column type="expand">
           <template #default="{ row }">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px">
-                <span :class="['order-type-tag', row.type]">
-                  {{ row.type === 'lease' ? '租赁' : '销售' }}
-                </span>
-                <el-link type="primary" @click="showDetail(row)" style="font-weight: 600">
-                  {{ row.orderNo }}
-                </el-link>
-              </div>
-              <el-tag
-                :color="getStatusColor(row)"
-                effect="dark"
-                size="small"
-                style="border: none"
-              >
-                {{ getStatusText(row) }}
-              </el-tag>
-              <span style="margin-left: 8px; color: #999; font-size: 12px">
-                {{ constants.platforms[row.platform] }}
-              </span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="客户信息" min-width="220">
-          <template #default="{ row }">
-            <div class="customer-info">
-              <div class="name">
-                {{ row.customer.name }}
-                <el-tag size="small" style="margin-left: 6px">{{ row.customer.phone }}</el-tag>
-              </div>
-              <div v-if="row.customer.email" class="phone">{{ row.customer.email }}</div>
-              <div class="address" :title="row.customer.address">
-                <el-icon><Location /></el-icon>
-                {{ row.customer.address }}
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="商品信息" min-width="280">
-          <template #default="{ row }">
-            <div class="product-list">
-              <div v-for="product in row.products.slice(0, 2)" :key="product.id" class="product-item">
-                <div>
-                  <span class="product-name">{{ product.name }}</span>
-                  <span class="product-sku">[{{ product.sku }}]</span>
-                </div>
-                <div class="product-meta">
-                  ¥{{ formatMoney(product.unitPrice) }} × {{ product.quantity }} =
-                  <strong style="color: #f5222d">¥{{ formatMoney(product.totalPrice) }}</strong>
-                </div>
-              </div>
-              <div v-if="row.products.length > 2" style="color: #1890ff; font-size: 12px">
-                等 {{ row.products.length }} 件商品...
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="金额" width="150" align="right" sortable="custom" prop="paidAmount">
-          <template #default="{ row }">
-            <div class="amount-info">
-              <div class="amount-total">¥{{ formatMoney(row.paidAmount) }}</div>
-              <div v-if="row.discountAmount > 0" class="amount-discount">
-                优惠 ¥{{ formatMoney(row.discountAmount) }}
-              </div>
-              <div v-if="row.totalAmount !== row.paidAmount" class="amount-original">
-                原价 ¥{{ formatMoney(row.totalAmount) }}
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column v-if="showLeaseColumn" label="租赁详情" width="200">
-          <template #default="{ row }">
-            <div v-if="row.type === 'lease' && row.leaseInfo" class="lease-info">
-              <div class="row">
-                <span class="label">租期:</span>
-                <span class="value">
-                  {{ row.leaseInfo.leasePeriod }}
-                  {{ row.leaseInfo.leaseUnit === 'day' ? '天' : row.leaseInfo.leaseUnit === 'month' ? '个月' : '年' }}
-                </span>
-              </div>
-              <div class="row">
-                <span class="label">状态:</span>
-                <el-tag
-                  size="small"
-                  :color="LEASE_STATUS_COLORS[row.leaseInfo.leaseStatus]"
-                  effect="dark"
-                  style="border: none"
-                >
-                  {{ constants.leaseStatuses[row.leaseInfo.leaseStatus] }}
+            <el-descriptions :column="3" border size="small">
+              <el-descriptions-item label="订单编号">
+                <el-tag type="primary">{{ row.orderNo }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="订单类型">
+                <el-tag :type="ORDER_TYPE_COLORS[row.type]">
+                  {{ getLabel('orderTypes', row.type) }}
                 </el-tag>
-              </div>
-              <div class="row">
-                <span class="label">起止:</span>
-                <span class="value" style="font-size: 11px">
-                  {{ row.leaseInfo.startDate }} ~ {{ row.leaseInfo.endDate }}
+              </el-descriptions-item>
+              <el-descriptions-item label="订单状态">
+                <el-tag :type="ORDER_STATUS_COLORS[row.status]">
+                  {{ getLabel('orderStatuses', row.status) }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="所属平台">
+                {{ getLabel('platforms', row.platform) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="支付方式">
+                {{ getLabel('paymentMethods', row.paymentMethod) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="指派人">
+                <el-tag :type="row.assignee === '未指派' ? 'danger' : ''">
+                  {{ row.assignee || '未指派' }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="商品总额">
+                <span style="color: #f56c6c; font-weight: bold;">
+                  {{ formatAmount(row.totalAmount) }}
                 </span>
-              </div>
+              </el-descriptions-item>
+              <el-descriptions-item label="优惠金额">
+                <span style="color: #67c23a;">
+                  -{{ formatAmount(row.discountAmount) }}
+                </span>
+              </el-descriptions-item>
+              <el-descriptions-item label="实付金额">
+                <span style="color: #409eff; font-weight: bold;">
+                  {{ formatAmount(row.paidAmount) }}
+                </span>
+              </el-descriptions-item>
+              <el-descriptions-item label="支付时间">
+                {{ formatDate(row.paymentTime) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="下单时间">
+                {{ formatDate(row.createTime) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="更新时间">
+                {{ formatDate(row.updateTime) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="客户姓名">
+                {{ row.customer.name }}
+              </el-descriptions-item>
+              <el-descriptions-item label="联系电话">
+                {{ row.customer.phone }}
+              </el-descriptions-item>
+              <el-descriptions-item label="电子邮箱">
+                {{ row.customer.email || '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="收货地址" :span="3">
+                {{ row.customer.address }}
+              </el-descriptions-item>
+              <el-descriptions-item label="来源渠道">
+                {{ row.sourceChannel || '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="备注" :span="2">
+                {{ row.remark || '-' }}
+              </el-descriptions-item>
+            </el-descriptions>
+
+            <div v-if="row.leaseInfo" class="lease-info">
+              <h4 class="section-title">
+                <el-icon><Clock /></el-icon>
+                租赁信息
+              </h4>
+              <el-descriptions :column="4" border size="small">
+                <el-descriptions-item label="租期">
+                  {{ row.leaseInfo.leasePeriod }}{{ row.leaseInfo.leaseUnit === 'day' ? '天' : row.leaseInfo.leaseUnit === 'month' ? '月' : '年' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="租赁开始">
+                  {{ row.leaseInfo.startDate }}
+                </el-descriptions-item>
+                <el-descriptions-item label="租赁结束">
+                  {{ row.leaseInfo.endDate }}
+                </el-descriptions-item>
+                <el-descriptions-item label="租赁状态">
+                  <el-tag :type="LEASE_STATUS_COLORS[row.leaseInfo.leaseStatus]">
+                    {{ getLabel('leaseStatuses', row.leaseInfo.leaseStatus) }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="押金">
+                  {{ formatAmount(row.leaseInfo.deposit) }}
+                </el-descriptions-item>
+                <el-descriptions-item label="月租金">
+                  {{ formatAmount(row.leaseInfo.monthlyRent) }}
+                </el-descriptions-item>
+                <el-descriptions-item label="物损押金">
+                  {{ formatAmount(row.leaseInfo.damageDeposit) }}
+                </el-descriptions-item>
+              </el-descriptions>
             </div>
-            <span v-else style="color: #ccc">—</span>
+
+            <div class="products-info">
+              <h4 class="section-title">
+                <el-icon><Goods /></el-icon>
+                商品信息
+              </h4>
+              <el-table :data="row.products" border size="small">
+                <el-table-column label="商品图片" width="100">
+                  <template #default="{ row: product }">
+                    <el-image 
+                      :src="product.imageUrl" 
+                      :preview-src-list="[product.imageUrl]"
+                      fit="cover"
+                      style="width: 60px; height: 60px; border-radius: 4px;"
+                    />
+                  </template>
+                </el-table-column>
+                <el-table-column prop="name" label="商品名称" min-width="200" />
+                <el-table-column prop="sku" label="SKU编码" width="150" />
+                <el-table-column prop="quantity" label="数量" width="100" align="center" />
+                <el-table-column label="单价" width="120" align="right">
+                  <template #default="{ row: product }">
+                    {{ formatAmount(product.unitPrice) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="小计" width="120" align="right">
+                  <template #default="{ row: product }">
+                    <span style="color: #f56c6c; font-weight: bold;">
+                      {{ formatAmount(product.totalPrice) }}
+                    </span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
           </template>
         </el-table-column>
 
-        <el-table-column label="下单时间" width="170" sortable="custom" prop="createTime">
+        <el-table-column 
+          prop="orderNo" 
+          label="订单编号" 
+          width="200" 
+          fixed="left"
+          sortable="custom"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <div class="time-info">
-              <div><el-icon><Calendar /></el-icon> {{ formatDate(row.createTime) }}</div>
-              <div style="font-size: 12px; color: #999">
-                支付: {{ row.paymentTime ? formatDate(row.paymentTime) : '-' }}
-              </div>
-            </div>
+            <el-link type="primary" @click="handleViewDetail(row)">
+              {{ row.orderNo }}
+            </el-link>
           </template>
         </el-table-column>
 
-        <el-table-column label="指派人员" width="130">
+        <el-table-column label="订单类型" width="100" align="center">
           <template #default="{ row }">
-            <div class="assignee-info">
-              <el-tag v-if="row.assignee && row.assignee !== '未指派'" type="primary" effect="light">
-                <el-icon><UserFilled /></el-icon>
-                {{ row.assignee }}
-              </el-tag>
-              <el-tag v-else type="info" effect="plain">未指派</el-tag>
-              <el-button
-                link
-                type="primary"
-                size="small"
-                @click="showAssignDialog(row)"
-              >
-                {{ row.assignee && row.assignee !== '未指派' ? '改派' : '指派' }}
-              </el-button>
-            </div>
+            <el-tag :type="ORDER_TYPE_COLORS[row.type]" size="small">
+              {{ getLabel('orderTypes', row.type) }}
+            </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="170" fixed="right" align="center">
+        <el-table-column label="订单状态" width="100" align="center" sortable="custom">
           <template #default="{ row }">
-            <el-space :size="4">
-              <el-button link type="primary" size="small" @click="showDetail(row)">
-                <el-icon><View /></el-icon>预览
-              </el-button>
-              <el-button link type="success" size="small" @click="goDetail(row)">
-                详情<el-icon><ArrowRight /></el-icon>
-              </el-button>
-            </el-space>
+            <el-tag :type="ORDER_STATUS_COLORS[row.status]" size="small">
+              {{ getLabel('orderStatuses', row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="所属平台" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ getLabel('platforms', row.platform) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="customer.name" label="客户姓名" width="100" />
+        <el-table-column prop="customer.phone" label="联系电话" width="130" />
+
+        <el-table-column 
+          prop="totalAmount" 
+          label="订单金额" 
+          width="130" 
+          align="right"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span style="color: #f56c6c; font-weight: 600;">
+              {{ formatAmount(row.totalAmount) }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="实付金额" width="130" align="right">
+          <template #default="{ row }">
+            <span style="color: #409eff; font-weight: 600;">
+              {{ formatAmount(row.paidAmount) }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="支付方式" width="100">
+          <template #default="{ row }">
+            {{ getLabel('paymentMethods', row.paymentMethod) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="指派人" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag 
+              :type="row.assignee === '未指派' ? 'danger' : ''" 
+              size="small"
+            >
+              {{ row.assignee || '未指派' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="createTime" 
+          label="下单时间" 
+          width="180" 
+          sortable="custom"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createTime) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="来源渠道" width="100" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.sourceChannel || '-' }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="220" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="handleViewDetail(row)">
+              <el-icon><View /></el-icon>
+              详情
+            </el-button>
+            <el-button type="success" link size="small" @click="handleAssign(row)">
+              <el-icon><User /></el-icon>
+              指派
+            </el-button>
+            <el-button type="warning" link size="small" @click="handleEditStatus(row)">
+              <el-icon><Edit /></el-icon>
+              状态
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <div style="display: flex; justify-content: flex-end; margin-top: 20px">
+      <div class="pagination-wrapper">
         <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.pageSize"
           :page-sizes="[10, 20, 50, 100]"
-          :total="total"
+          :total="paginatedData.total"
           layout="total, sizes, prev, pager, next, jumper"
-          background
-          @size-change="handlePageSizeChange"
+          @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
         />
       </div>
-    </div>
+    </el-card>
 
-    <el-dialog v-model="detailVisible" title="订单详情" width="900px" destroy-on-close>
-      <el-descriptions v-if="currentOrder" :column="2" border>
-        <el-descriptions-item label="订单编号" :span="1">
-          <strong>{{ currentOrder.orderNo }}</strong>
-        </el-descriptions-item>
-        <el-descriptions-item label="订单类型" :span="1">
-          <span :class="['order-type-tag', currentOrder.type]">
-            {{ currentOrder.type === 'lease' ? '租赁单' : '销售单' }}
-          </span>
-        </el-descriptions-item>
-        <el-descriptions-item label="订单状态">
-          <el-tag
-            :color="getStatusColor(currentOrder)"
-            effect="dark"
-            style="border: none"
-          >
-            {{ getStatusText(currentOrder) }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="来源平台">
-          {{ constants.platforms[currentOrder.platform] }}
-        </el-descriptions-item>
-        <el-descriptions-item label="客户姓名">{{ currentOrder.customer.name }}</el-descriptions-item>
-        <el-descriptions-item label="联系电话">{{ currentOrder.customer.phone }}</el-descriptions-item>
-        <el-descriptions-item label="电子邮箱" :span="1">
-          {{ currentOrder.customer.email || '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="收货地址" :span="1">
-          {{ currentOrder.customer.address }}
-        </el-descriptions-item>
-        <el-descriptions-item label="订单总额">¥{{ formatMoney(currentOrder.totalAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="优惠金额">¥{{ formatMoney(currentOrder.discountAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="实付金额">
-          <strong style="color: #f5222d; font-size: 16px">¥{{ formatMoney(currentOrder.paidAmount) }}</strong>
-        </el-descriptions-item>
-        <el-descriptions-item label="支付方式">
-          {{ constants.paymentMethods[currentOrder.paymentMethod] }}
-        </el-descriptions-item>
-        <el-descriptions-item label="支付时间">
-          {{ currentOrder.paymentTime ? formatDate(currentOrder.paymentTime) : '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="下单时间">{{ formatDate(currentOrder.createTime) }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ formatDate(currentOrder.updateTime) }}</el-descriptions-item>
-        <el-descriptions-item label="指派人员">
-          {{ currentOrder.assignee || '未指派' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="来源渠道">
-          {{ currentOrder.sourceChannel || '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">
-          {{ currentOrder.remark || '-' }}
-        </el-descriptions-item>
-      </el-descriptions>
+    <el-dialog 
+      v-model="detailDialogVisible" 
+      title="订单详情" 
+      width="900px"
+      destroy-on-close
+    >
+      <template v-if="currentOrder">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订单编号">
+            <el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="订单类型">
+            <el-tag :type="ORDER_TYPE_COLORS[currentOrder.type]">
+              {{ getLabel('orderTypes', currentOrder.type) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="订单状态">
+            <el-tag :type="ORDER_STATUS_COLORS[currentOrder.status]">
+              {{ getLabel('orderStatuses', currentOrder.status) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="所属平台">
+            {{ getLabel('platforms', currentOrder.platform) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="客户姓名">
+            {{ currentOrder.customer.name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系电话">
+            {{ currentOrder.customer.phone }}
+          </el-descriptions-item>
+          <el-descriptions-item label="收货地址" :span="2">
+            {{ currentOrder.customer.address }}
+          </el-descriptions-item>
+          <el-descriptions-item label="商品总额">
+            <span style="color: #f56c6c; font-weight: bold;">
+              {{ formatAmount(currentOrder.totalAmount) }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="实付金额">
+            <span style="color: #409eff; font-weight: bold;">
+              {{ formatAmount(currentOrder.paidAmount) }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="支付方式">
+            {{ getLabel('paymentMethods', currentOrder.paymentMethod) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="支付时间">
+            {{ formatDate(currentOrder.paymentTime) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="下单时间">
+            {{ formatDate(currentOrder.createTime) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="更新时间">
+            {{ formatDate(currentOrder.updateTime) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="指派人">
+            {{ currentOrder.assignee || '未指派' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">
+            {{ currentOrder.remark || '-' }}
+          </el-descriptions-item>
+        </el-descriptions>
 
-      <el-divider content-position="left">商品明细</el-divider>
-      <el-table v-if="currentOrder" :data="currentOrder.products" border>
-        <el-table-column prop="name" label="商品名称" />
-        <el-table-column prop="sku" label="SKU编码" width="160" />
-        <el-table-column label="单价(元)" width="120" align="right">
-          <template #default="{ row }">¥{{ formatMoney(row.unitPrice) }}</template>
-        </el-table-column>
-        <el-table-column prop="quantity" label="数量" width="80" align="center" />
-        <el-table-column label="小计(元)" width="130" align="right">
-          <template #default="{ row }">
-            <strong style="color: #f5222d">¥{{ formatMoney(row.totalPrice) }}</strong>
-          </template>
-        </el-table-column>
-      </el-table>
+        <h4 class="section-title" style="margin-top: 20px;">商品列表</h4>
+        <el-table :data="currentOrder.products" border>
+          <el-table-column label="商品图片" width="100">
+            <template #default="{ row }">
+              <el-image 
+                :src="row.imageUrl" 
+                :preview-src-list="[row.imageUrl]"
+                fit="cover"
+                style="width: 60px; height: 60px; border-radius: 4px;"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="商品名称" min-width="200" />
+          <el-table-column prop="sku" label="SKU编码" width="150" />
+          <el-table-column prop="quantity" label="数量" width="100" align="center" />
+          <el-table-column label="单价" width="120" align="right">
+            <template #default="{ row }">
+              {{ formatAmount(row.unitPrice) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="小计" width="120" align="right">
+            <template #default="{ row }">
+              <span style="color: #f56c6c; font-weight: bold;">
+                {{ formatAmount(row.totalPrice) }}
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <el-divider v-if="currentOrder?.type === 'lease'" content-position="left">租赁信息</el-divider>
-      <el-descriptions v-if="currentOrder?.type === 'lease' && currentOrder.leaseInfo" :column="3" border>
-        <el-descriptions-item label="租赁状态">
-          <el-tag
-            :color="LEASE_STATUS_COLORS[currentOrder.leaseInfo.leaseStatus]"
-            effect="dark"
-            style="border: none"
-          >
-            {{ constants.leaseStatuses[currentOrder.leaseInfo.leaseStatus] }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="租期">
-          {{ currentOrder.leaseInfo.leasePeriod }}
-          {{ currentOrder.leaseInfo.leaseUnit === 'day' ? '天' : currentOrder.leaseInfo.leaseUnit === 'month' ? '个月' : '年' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="月租金">¥{{ formatMoney(currentOrder.leaseInfo.monthlyRent) }}</el-descriptions-item>
-        <el-descriptions-item label="开始日期">{{ currentOrder.leaseInfo.startDate }}</el-descriptions-item>
-        <el-descriptions-item label="结束日期">{{ currentOrder.leaseInfo.endDate }}</el-descriptions-item>
-        <el-descriptions-item label="押金">¥{{ formatMoney(currentOrder.leaseInfo.deposit) }}</el-descriptions-item>
-        <el-descriptions-item label="物损押金" :span="3">
-          ¥{{ formatMoney(currentOrder.leaseInfo.damageDeposit) }}
-        </el-descriptions-item>
-      </el-descriptions>
-
+        <div v-if="currentOrder.leaseInfo" style="margin-top: 20px;">
+          <h4 class="section-title">租赁信息</h4>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="租期">
+              {{ currentOrder.leaseInfo.leasePeriod }}{{ currentOrder.leaseInfo.leaseUnit === 'day' ? '天' : currentOrder.leaseInfo.leaseUnit === 'month' ? '月' : '年' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="租赁状态">
+              <el-tag :type="LEASE_STATUS_COLORS[currentOrder.leaseInfo.leaseStatus]">
+                {{ getLabel('leaseStatuses', currentOrder.leaseInfo.leaseStatus) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="租赁开始">
+              {{ currentOrder.leaseInfo.startDate }}
+            </el-descriptions-item>
+            <el-descriptions-item label="租赁结束">
+              {{ currentOrder.leaseInfo.endDate }}
+            </el-descriptions-item>
+            <el-descriptions-item label="押金">
+              {{ formatAmount(currentOrder.leaseInfo.deposit) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="月租金">
+              {{ formatAmount(currentOrder.leaseInfo.monthlyRent) }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </template>
       <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button @click="detailDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="assignVisible" title="订单指派" width="420px" destroy-on-close>
-      <el-form v-if="assignOrder" label-width="100px">
-        <el-form-item label="订单编号">
-          <span style="font-weight: 600; color: #1890ff">{{ assignOrder.orderNo }}</span>
-        </el-form-item>
-        <el-form-item label="当前指派">
-          {{ assignOrder.assignee || '未指派' }}
-        </el-form-item>
-        <el-form-item label="指派人员" required>
-          <el-select v-model="selectedAssignee" placeholder="请选择指派人" style="width: 100%">
-            <el-option
-              v-for="name in constants.assignees"
-              :key="name"
-              :label="name"
-              :value="name"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="assignDialogVisible" title="订单指派" width="400px">
+      <template v-if="currentOrder">
+        <p style="margin-bottom: 16px;">
+          订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
+        </p>
+        <el-select 
+          v-model="selectedAssignee" 
+          placeholder="请选择指派人" 
+          style="width: 100%"
+          size="large"
+        >
+          <el-option
+            v-for="item in enumOptions?.assignees"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </template>
       <template #footer>
-        <el-button @click="assignVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmAssign" :disabled="!selectedAssignee">
-          确认指派
-        </el-button>
+        <el-button @click="assignDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmAssign" :loading="assigning">确认指派</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="statusDialogVisible" title="修改订单状态" width="400px">
+      <template v-if="currentOrder">
+        <p style="margin-bottom: 16px;">
+          订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
+        </p>
+        <p style="margin-bottom: 16px;">
+          当前状态：
+          <el-tag :type="ORDER_STATUS_COLORS[currentOrder.status]">
+            {{ getLabel('orderStatuses', currentOrder.status) }}
+          </el-tag>
+        </p>
+        <el-select 
+          v-model="selectedStatus" 
+          placeholder="请选择新状态" 
+          style="width: 100%"
+          size="large"
+        >
+          <el-option
+            v-for="item in enumOptions?.orderStatuses"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </template>
+      <template #footer>
+        <el-button @click="statusDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmStatus" :loading="statusUpdating">确认修改</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  Search,
-  Refresh,
-  Download,
-  RefreshRight,
-  UserFilled,
-  Location,
-  Calendar,
-  View,
-  DataLine,
-  Goods,
-  Clock,
-  Wallet,
-  User,
-  List,
-  ArrowRight
-} from '@element-plus/icons-vue';
-import { orderApi } from '../api/order';
-import type {
-  Order,
-  OrderFilterParams,
-  OrderStatistics,
-  ConstantsData
-} from '../types/order';
-import { ORDER_STATUS_COLORS, LEASE_STATUS_COLORS } from '../types/order';
+import { ref, reactive, onMounted, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { 
+  Order, 
+  OrderFilter, 
+  PaginationParams, 
+  PaginatedResponse,
+  EnumOptions,
+  OrderStatus
+} from '@/types/order'
+import { 
+  ORDER_TYPE_COLORS, 
+  ORDER_STATUS_COLORS, 
+  LEASE_STATUS_COLORS,
+  formatDate, 
+  formatAmount 
+} from '@/types/order'
+import { 
+  getOrders, 
+  getEnumOptions, 
+  exportOrdersToExcel,
+  assignOrder,
+  updateOrderStatus
+} from '@/api/order'
 
-const router = useRouter();
+const loading = ref(false)
+const exporting = ref(false)
+const assigning = ref(false)
+const statusUpdating = ref(false)
+const showAdvancedFilter = ref(false)
 
-const loading = ref(false);
-const orders = ref<Order[]>([]);
-const total = ref(0);
-const currentPage = ref(1);
-const pageSize = ref(20);
-const sortField = ref('createTime');
-const sortOrder = ref<'asc' | 'desc'>('desc');
+const enumOptions = ref<EnumOptions | null>(null)
+const dateRange = ref<string[]>([])
+const sourceChannelFilter = ref<string | undefined>(undefined)
 
-const statistics = ref<OrderStatistics>({
-  total: 0,
-  leaseCount: 0,
-  saleCount: 0,
-  totalAmount: 0,
-  unassigned: 0,
-  statusStats: {},
-  platformStats: {}
-});
-
-const constants = ref<ConstantsData>({
-  orderTypes: {},
-  orderStatuses: {},
-  leaseStatuses: {},
-  platforms: {},
-  paymentMethods: {},
-  assignees: [],
-  sourceChannels: []
-});
-
-const filterForm = reactive<OrderFilterParams>({
-  keyword: '',
-  type: 'all',
-  status: 'all',
-  leaseStatus: 'all',
-  platform: 'all',
-  paymentMethod: 'all',
-  assignee: '',
-  sourceChannel: '',
-  startDate: '',
-  endDate: '',
+const filterForm = reactive<OrderFilter>({
+  type: undefined,
+  status: undefined,
+  platform: undefined,
+  paymentMethod: undefined,
+  orderNo: '',
+  customerName: '',
+  customerPhone: '',
+  startDate: undefined,
+  endDate: undefined,
   minAmount: undefined,
-  maxAmount: undefined
-});
+  maxAmount: undefined,
+  assignee: undefined,
+  leaseStatus: undefined
+})
 
-const dateRange = ref<string[] | null>(null);
+const pagination = reactive<PaginationParams>({
+  page: 1,
+  pageSize: 20,
+  sortField: undefined,
+  sortOrder: undefined
+})
 
-const selectedOrders = ref<Order[]>([]);
-const batchAssignee = ref('');
+const paginatedData = reactive<PaginatedResponse<Order>>({
+  list: [],
+  total: 0,
+  page: 1,
+  pageSize: 20,
+  totalPages: 0
+})
 
-const detailVisible = ref(false);
-const currentOrder = ref<Order | null>(null);
+const detailDialogVisible = ref(false)
+const assignDialogVisible = ref(false)
+const statusDialogVisible = ref(false)
+const currentOrder = ref<Order | null>(null)
+const selectedAssignee = ref('')
+const selectedStatus = ref<OrderStatus | ''>('')
 
-const assignVisible = ref(false);
-const assignOrder = ref<Order | null>(null);
-const selectedAssignee = ref('');
-
-const showLeaseColumn = computed(() => {
-  return filterForm.type === 'all' || filterForm.type === 'lease';
-});
-
-async function loadConstants() {
+const fetchEnumOptions = async () => {
   try {
-    const res = await orderApi.getConstants();
-    if (res.code === 0) {
-      constants.value = res.data;
-    }
-  } catch (error) {
-    console.error('加载常量失败:', error);
+    const res = await getEnumOptions()
+    enumOptions.value = res.data
+  } catch (e) {
+    console.error(e)
   }
 }
 
-async function loadStatistics() {
+const fetchOrders = async () => {
+  loading.value = true
   try {
-    const res = await orderApi.getStatistics();
-    if (res.code === 0) {
-      statistics.value = res.data;
-    }
-  } catch (error) {
-    console.error('加载统计数据失败:', error);
-  }
-}
-
-async function loadOrders() {
-  loading.value = true;
-  try {
-    const params: OrderFilterParams = {
+    const filter: OrderFilter = {
       ...filterForm,
-      page: currentPage.value,
-      pageSize: pageSize.value,
-      sortField: sortField.value,
-      sortOrder: sortOrder.value
-    };
-    if (dateRange.value && dateRange.value.length === 2) {
-      params.startDate = dateRange.value[0];
-      params.endDate = dateRange.value[1];
+      startDate: dateRange.value?.[0],
+      endDate: dateRange.value?.[1]
     }
-    const res = await orderApi.getList(params);
-    if (res.code === 0) {
-      orders.value = res.data.list;
-      total.value = res.data.total;
-    } else {
-      ElMessage.error(res.message || '加载订单列表失败');
-    }
-  } catch (error) {
-    console.error('加载订单列表失败:', error);
-    ElMessage.error('加载订单列表失败，请重试');
+    const res = await getOrders(filter, pagination)
+    paginatedData.list = res.data.list
+    paginatedData.total = res.data.total
+    paginatedData.page = res.data.page
+    paginatedData.pageSize = res.data.pageSize
+    paginatedData.totalPages = res.data.totalPages
+  } catch (e: any) {
+    ElMessage.error(e.message || '获取订单列表失败')
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
-function handleSearch() {
-  currentPage.value = 1;
-  loadOrders();
+const handleSearch = () => {
+  pagination.page = 1
+  fetchOrders()
 }
 
-function handleReset() {
-  Object.assign(filterForm, {
-    keyword: '',
-    type: 'all',
-    status: 'all',
-    leaseStatus: 'all',
-    platform: 'all',
-    paymentMethod: 'all',
-    assignee: '',
-    sourceChannel: '',
-    startDate: '',
-    endDate: '',
-    minAmount: undefined,
-    maxAmount: undefined
-  });
-  dateRange.value = null;
-  currentPage.value = 1;
-  sortField.value = 'createTime';
-  sortOrder.value = 'desc';
-  loadOrders();
+const handleRefresh = () => {
+  fetchOrders()
 }
 
-function handleSelectionChange(selection: Order[]) {
-  selectedOrders.value = selection;
+const resetFilter = () => {
+  filterForm.type = undefined
+  filterForm.status = undefined
+  filterForm.platform = undefined
+  filterForm.paymentMethod = undefined
+  filterForm.orderNo = ''
+  filterForm.customerName = ''
+  filterForm.customerPhone = ''
+  filterForm.minAmount = undefined
+  filterForm.maxAmount = undefined
+  filterForm.assignee = undefined
+  filterForm.leaseStatus = undefined
+  dateRange.value = []
+  sourceChannelFilter.value = undefined
 }
 
-function clearSelection() {
-  selectedOrders.value = [];
-  batchAssignee.value = '';
+const toggleAdvancedFilter = () => {
+  showAdvancedFilter.value = !showAdvancedFilter.value
 }
 
-function handleSortChange({ prop, order }: { prop?: string; order?: string }) {
-  if (prop && order) {
-    sortField.value = prop;
-    sortOrder.value = order === 'ascending' ? 'asc' : 'desc';
-    loadOrders();
-  }
+const handleSortChange = ({ prop, order }: { prop: string; order: string | null }) => {
+  pagination.sortField = order ? prop : undefined
+  pagination.sortOrder = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : undefined
+  fetchOrders()
 }
 
-function handlePageSizeChange(size: number) {
-  pageSize.value = size;
-  currentPage.value = 1;
-  loadOrders();
+const handleSizeChange = (size: number) => {
+  pagination.pageSize = size
+  pagination.page = 1
+  fetchOrders()
 }
 
-function handleCurrentChange(page: number) {
-  currentPage.value = page;
-  loadOrders();
+const handleCurrentChange = (page: number) => {
+  pagination.page = page
+  fetchOrders()
 }
 
-function indexMethod(index: number) {
-  return (currentPage.value - 1) * pageSize.value + index + 1;
-}
-
-function showDetail(row: Order) {
-  currentOrder.value = row;
-  detailVisible.value = true;
-}
-
-function goDetail(row: Order) {
-  router.push(`/orders/${row.id}`);
-}
-
-function showAssignDialog(row: Order) {
-  assignOrder.value = row;
-  selectedAssignee.value = row.assignee && row.assignee !== '未指派' ? row.assignee : '';
-  assignVisible.value = true;
-}
-
-async function confirmAssign() {
-  if (!assignOrder.value || !selectedAssignee.value) return;
-  try {
-    const res = await orderApi.assign(assignOrder.value.id, selectedAssignee.value);
-    if (res.code === 0) {
-      ElMessage.success('指派成功');
-      assignVisible.value = false;
-      loadOrders();
-      loadStatistics();
-    } else {
-      ElMessage.error(res.message || '指派失败');
-    }
-  } catch (error) {
-    console.error('指派失败:', error);
-    ElMessage.error('指派失败，请重试');
-  }
-}
-
-async function handleBatchAssign() {
-  if (selectedOrders.value.length === 0 || !batchAssignee.value) return;
+const handleExport = async () => {
   try {
     await ElMessageBox.confirm(
-      `确定将选中的 ${selectedOrders.value.length} 条订单指派给「${batchAssignee.value}」吗？`,
-      '批量指派确认',
-      { type: 'warning' }
-    );
-    const orderIds = selectedOrders.value.map(o => o.id);
-    const res = await orderApi.batchAssign(orderIds, batchAssignee.value);
-    if (res.code === 0) {
-      ElMessage.success(res.message);
-      clearSelection();
-      loadOrders();
-      loadStatistics();
-    } else {
-      ElMessage.error(res.message || '批量指派失败');
+      `确定要导出当前筛选条件下的 ${paginatedData.total} 条订单数据吗？`,
+      '确认导出',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    )
+    
+    exporting.value = true
+    const filter: OrderFilter = {
+      ...filterForm,
+      startDate: dateRange.value?.[0],
+      endDate: dateRange.value?.[1]
     }
+    await exportOrdersToExcel(filter)
+    ElMessage.success('导出成功')
   } catch (e: any) {
     if (e !== 'cancel') {
-      console.error('批量指派失败:', e);
-      ElMessage.error('批量指派失败，请重试');
+      ElMessage.error(e.message || '导出失败')
+    }
+  } finally {
+    exporting.value = false
+  }
+}
+
+const handleViewDetail = (row: Order) => {
+  currentOrder.value = row
+  detailDialogVisible.value = true
+}
+
+const handleAssign = (row: Order) => {
+  currentOrder.value = row
+  selectedAssignee.value = row.assignee || ''
+  assignDialogVisible.value = true
+}
+
+const confirmAssign = async () => {
+  if (!selectedAssignee.value) {
+    ElMessage.warning('请选择指派人')
+    return
+  }
+  if (!currentOrder.value) return
+  
+  assigning.value = true
+  try {
+    await assignOrder(currentOrder.value.id, selectedAssignee.value)
+    ElMessage.success('指派成功')
+    assignDialogVisible.value = false
+    fetchOrders()
+  } catch (e: any) {
+    ElMessage.error(e.message || '指派失败')
+  } finally {
+    assigning.value = false
+  }
+}
+
+const handleEditStatus = (row: Order) => {
+  currentOrder.value = row
+  selectedStatus.value = row.status
+  statusDialogVisible.value = true
+}
+
+const confirmStatus = async () => {
+  if (!selectedStatus.value) {
+    ElMessage.warning('请选择订单状态')
+    return
+  }
+  if (!currentOrder.value) return
+  
+  statusUpdating.value = true
+  try {
+    await updateOrderStatus(currentOrder.value.id, selectedStatus.value as OrderStatus)
+    ElMessage.success('状态修改成功')
+    statusDialogVisible.value = false
+    fetchOrders()
+  } catch (e: any) {
+    ElMessage.error(e.message || '状态修改失败')
+  } finally {
+    statusUpdating.value = false
+  }
+}
+
+const getLabel = (type: keyof EnumOptions, value: string): string => {
+  if (!enumOptions.value) return value
+  const options = enumOptions.value[type]
+  const option = options.find(o => o.value === value)
+  return option ? option.label : value
+}
+
+watch(
+  () => filterForm.type,
+  (newType) => {
+    if (newType !== 'lease') {
+      filterForm.leaseStatus = undefined
     }
   }
-}
-
-async function handleExportAll() {
-  doExport(filterForm);
-}
-
-async function handleExportSelected() {
-  if (selectedOrders.value.length === 0) {
-    ElMessage.warning('请先选择要导出的订单');
-    return;
-  }
-  const ids = selectedOrders.value.map(o => o.id).join(',');
-  doExport({ ...filterForm, keyword: ids });
-}
-
-async function doExport(params: OrderFilterParams) {
-  try {
-    ElMessage.info('正在导出，请稍候...');
-    const blob = await orderApi.exportExcel(params);
-    const url = window.URL.createObjectURL(new Blob([blob]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute(
-      'download',
-      `订单列表_${new Date().toISOString().slice(0, 10)}.xlsx`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-    ElMessage.success('导出成功');
-  } catch (error) {
-    console.error('导出失败:', error);
-    ElMessage.error('导出失败，请重试');
-  }
-}
-
-function formatMoney(value: number): string {
-  if (value === undefined || value === null) return '0.00';
-  return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-}
-
-function getStatusText(order: Order): string {
-  if (order.type === 'lease' && order.leaseInfo) {
-    return constants.value.leaseStatuses[order.leaseInfo.leaseStatus] || '';
-  }
-  return constants.value.orderStatuses[order.status] || '';
-}
-
-function getStatusColor(order: Order): string {
-  if (order.type === 'lease' && order.leaseInfo) {
-    return LEASE_STATUS_COLORS[order.leaseInfo.leaseStatus] || '#999';
-  }
-  return ORDER_STATUS_COLORS[order.status] || '#999';
-}
+)
 
 onMounted(() => {
-  loadConstants();
-  loadStatistics();
-  loadOrders();
-});
+  fetchEnumOptions()
+  fetchOrders()
+})
 </script>
+
+<style scoped>
+.order-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.filter-card {
+  border-radius: 8px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.table-card {
+  border-radius: 8px;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.table-title {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.total-tag {
+  margin-left: 12px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ebeef5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lease-info,
+.products-info {
+  margin-top: 16px;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+</style>

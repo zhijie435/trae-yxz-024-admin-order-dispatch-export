@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { OrderService } from './services/OrderService';
+import { OrderService, ValidationError } from './services/OrderService';
 import {
   OrderFilterParams,
   AssignOrderParams,
@@ -70,6 +70,16 @@ app.get('/api/orders/statistics', (_req, res) => {
   }
 });
 
+app.get('/api/orders/stats', (_req, res) => {
+  try {
+    const stats = OrderService.getStatistics();
+    res.json({ code: 0, message: 'success', data: stats });
+  } catch (error) {
+    console.error('获取统计数据失败:', error);
+    res.status(500).json({ code: 500, message: '获取统计数据失败' });
+  }
+});
+
 app.get('/api/orders/export/excel', (req, res) => {
   try {
     const query = req.query;
@@ -102,12 +112,50 @@ app.get('/api/orders/export/excel', (req, res) => {
 
 app.post('/api/orders/assign', (req, res) => {
   try {
-    const { orderId, assignee } = req.body as AssignOrderParams;
+    const { orderId, assignee, assignAmount } = req.body as AssignOrderParams;
     if (!orderId || !assignee) {
       res.status(400).json({ code: 400, message: '缺少必要参数' });
       return;
     }
-    const order = OrderService.assign({ orderId, assignee });
+    let order;
+    try {
+      order = OrderService.assign({ orderId, assignee, assignAmount });
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '指派成功', data: order });
+  } catch (error) {
+    console.error('指派订单失败:', error);
+    res.status(500).json({ code: 500, message: '指派订单失败' });
+  }
+});
+
+app.put('/api/orders/:id/assign', (req, res) => {
+  try {
+    const { assignee, assignAmount } = req.body as { assignee: string; assignAmount?: number };
+    const orderId = req.params.id;
+    if (!orderId || !assignee) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    let order;
+    try {
+      order = OrderService.assign({ orderId, assignee, assignAmount });
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
     if (!order) {
       res.status(404).json({ code: 404, message: '订单不存在' });
       return;
@@ -127,6 +175,21 @@ app.post('/api/orders/batch-assign', (req, res) => {
       return;
     }
     const result = OrderService.batchAssign(orderIds, assignee);
+    res.json({ code: 0, message: `批量指派完成：成功 ${result.success} 条，失败 ${result.failed} 条`, data: result });
+  } catch (error) {
+    console.error('批量指派失败:', error);
+    res.status(500).json({ code: 500, message: '批量指派失败' });
+  }
+});
+
+app.post('/api/orders/batch/assign', (req, res) => {
+  try {
+    const { ids, assignee } = req.body as { ids: string[]; assignee: string };
+    if (!ids || ids.length === 0 || !assignee) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    const result = OrderService.batchAssign(ids, assignee);
     res.json({ code: 0, message: `批量指派完成：成功 ${result.success} 条，失败 ${result.failed} 条`, data: result });
   } catch (error) {
     console.error('批量指派失败:', error);
@@ -198,18 +261,50 @@ app.get('/api/orders/:id', (req, res) => {
 });
 
 app.get('/api/constants', (_req, res) => {
+  const transformOptions = (record: Record<string, string>): Array<{ value: string; label: string }> =>
+    Object.entries(record).map(([value, label]) => ({ value, label }));
+
+  const transformList = (list: string[]): Array<{ value: string; label: string }> =>
+    list.map(item => ({ value: item, label: item }));
+
+  const options = {
+    orderTypes: transformOptions(ORDER_TYPE_LABELS),
+    orderStatuses: transformOptions(ORDER_STATUS_LABELS),
+    leaseStatuses: transformOptions(LEASE_STATUS_LABELS),
+    platforms: transformOptions(PLATFORM_LABELS),
+    paymentMethods: transformOptions(PAYMENT_METHOD_LABELS),
+    assignees: transformList(ASSIGNEES),
+    sourceChannels: transformList(SOURCE_CHANNELS)
+  };
+
   res.json({
     code: 0,
     message: 'success',
-    data: {
-      orderTypes: ORDER_TYPE_LABELS,
-      orderStatuses: ORDER_STATUS_LABELS,
-      leaseStatuses: LEASE_STATUS_LABELS,
-      platforms: PLATFORM_LABELS,
-      paymentMethods: PAYMENT_METHOD_LABELS,
-      assignees: ASSIGNEES,
-      sourceChannels: SOURCE_CHANNELS
-    }
+    data: options
+  });
+});
+
+app.get('/api/orders/options/enums', (_req, res) => {
+  const transformOptions = (record: Record<string, string>): Array<{ value: string; label: string }> =>
+    Object.entries(record).map(([value, label]) => ({ value, label }));
+
+  const transformList = (list: string[]): Array<{ value: string; label: string }> =>
+    list.map(item => ({ value: item, label: item }));
+
+  const options = {
+    orderTypes: transformOptions(ORDER_TYPE_LABELS),
+    orderStatuses: transformOptions(ORDER_STATUS_LABELS),
+    leaseStatuses: transformOptions(LEASE_STATUS_LABELS),
+    platforms: transformOptions(PLATFORM_LABELS),
+    paymentMethods: transformOptions(PAYMENT_METHOD_LABELS),
+    assignees: transformList(ASSIGNEES),
+    sourceChannels: transformList(SOURCE_CHANNELS)
+  };
+
+  res.json({
+    code: 0,
+    message: 'success',
+    data: options
   });
 });
 
