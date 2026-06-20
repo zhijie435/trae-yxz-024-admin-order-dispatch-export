@@ -256,3 +256,22 @@ export const SOURCE_CHANNELS = [
   '搜索引擎', '社交媒体', '朋友推荐', '线下展会',
   '广告投放', '老客户', '自然流量', '合作伙伴'
 ];
+
+export const CITIES = [
+  '北京市', '上海市', '广州市', '深圳市', '杭州市',
+  '成都市', '武汉市', '西安市', '南京市', '重庆市',
+  '苏州市', '天津市', '长沙市', '郑州市', '东莞市',
+  '青岛市', '沈阳市', '宁波市', '昆明市', '大连市'
+];
+
+export const PARTNER_LEVEL_LABELS: Record<string, string> = {
+  primary: '金牌合伙人',
+  secondary: '银牌合伙人',
+  normal: '普通合伙人'
+};
+
+export const PARTNER_LEVEL_COLORS: Record<string, string> = {
+  primary: '#faad14',
+  secondary: '#1890ff',
+  normal: '#8c8c8c'
+};
