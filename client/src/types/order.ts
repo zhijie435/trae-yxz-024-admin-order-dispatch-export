@@ -19,6 +19,12 @@ export type LeaseStatus =
   | 'completed'
   | 'overdue';
 
+export type AssignStage =
+  | 'pending_assign'
+  | 'assigned'
+  | 'store_rejected'
+  | 'hq_handled';
+
 export type PaymentMethod = 
   | 'alipay'
   | 'wechat'
@@ -34,6 +40,8 @@ export type Platform =
   | 'pinduoduo'
   | 'douyin'
   | 'offline_store';
+
+export const ASSIGNEE_HQ_TAKEOVER = '总部兜底';
 
 export interface Customer {
   id: string;
@@ -84,6 +92,9 @@ export interface Order {
   assignAmount?: number;
   sourceChannel?: string;
   leaseInfo?: LeaseInfo;
+  assignStage?: AssignStage;
+  rejectReason?: string;
+  isHqTakeover?: boolean;
 }
 
 export interface OrderFilter {
@@ -100,6 +111,7 @@ export interface OrderFilter {
   maxAmount?: number;
   assignee?: string;
   leaseStatus?: LeaseStatus;
+  assignStage?: AssignStage;
 }
 
 export interface PaginationParams {
@@ -135,6 +147,7 @@ export interface EnumOptions {
   paymentMethods: SelectOption[];
   assignees: SelectOption[];
   sourceChannels: SelectOption[];
+  assignStages: SelectOption[];
 }
 
 export const ORDER_TYPE_COLORS: Record<OrderType, string> = {
@@ -183,3 +196,17 @@ export function getLabelFromOptions(options: SelectOption[], value: string): str
   const option = options.find(o => o.value === value);
   return option ? option.label : value;
 }
+
+export const ASSIGN_STAGE_LABELS: Record<AssignStage, string> = {
+  pending_assign: '待指派',
+  assigned: '已指派',
+  store_rejected: '门店拒单',
+  hq_handled: '总部已处理'
+};
+
+export const ASSIGN_STAGE_COLORS: Record<AssignStage, string> = {
+  pending_assign: 'info',
+  assigned: 'primary',
+  store_rejected: 'danger',
+  hq_handled: 'success'
+};

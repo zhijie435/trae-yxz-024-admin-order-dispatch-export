@@ -12,6 +12,7 @@ import {
   PAYMENT_METHOD_LABELS,
   ASSIGNEES,
   SOURCE_CHANNELS,
+  ASSIGN_STAGE_LABELS,
   OrderType,
   OrderStatus,
   LeaseStatus,
@@ -167,6 +168,142 @@ app.put('/api/orders/:id/assign', (req, res) => {
   }
 });
 
+app.put('/api/orders/:id/status', (req, res) => {
+  try {
+    const { status } = req.body as { status: OrderStatus };
+    const orderId = req.params.id;
+    if (!orderId || !status) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    const order = OrderService.updateStatus(orderId, status);
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '状态更新成功', data: order });
+  } catch (error) {
+    console.error('更新订单状态失败:', error);
+    res.status(500).json({ code: 500, message: '更新订单状态失败' });
+  }
+});
+
+app.put('/api/orders/:id/reject', (req, res) => {
+  try {
+    const { reason } = req.body as { reason: string };
+    const orderId = req.params.id;
+    if (!orderId) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    let order;
+    try {
+      order = OrderService.rejectByStore(orderId, reason);
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '拒单成功', data: order });
+  } catch (error) {
+    console.error('门店拒单失败:', error);
+    res.status(500).json({ code: 500, message: '门店拒单失败' });
+  }
+});
+
+app.put('/api/orders/:id/hq-takeover', (req, res) => {
+  try {
+    const { assignAmount } = req.body as { assignAmount: number };
+    const orderId = req.params.id;
+    if (!orderId) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    let order;
+    try {
+      order = OrderService.hqTakeover(orderId, assignAmount);
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '总部兜底接单成功', data: order });
+  } catch (error) {
+    console.error('总部兜底接单失败:', error);
+    res.status(500).json({ code: 500, message: '总部兜底接单失败' });
+  }
+});
+
+app.put('/api/orders/:id/hq-transfer', (req, res) => {
+  try {
+    const { assignee, assignAmount } = req.body as { assignee: string; assignAmount: number };
+    const orderId = req.params.id;
+    if (!orderId || !assignee) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    let order;
+    try {
+      order = OrderService.hqTransfer(orderId, assignee, assignAmount);
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '总部转派成功', data: order });
+  } catch (error) {
+    console.error('总部转派失败:', error);
+    res.status(500).json({ code: 500, message: '总部转派失败' });
+  }
+});
+
+app.put('/api/orders/:id/hq-cancel', (req, res) => {
+  try {
+    const { reason } = req.body as { reason: string };
+    const orderId = req.params.id;
+    if (!orderId) {
+      res.status(400).json({ code: 400, message: '缺少必要参数' });
+      return;
+    }
+    let order;
+    try {
+      order = OrderService.hqCancel(orderId, reason);
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ code: 400, message: e.message });
+        return;
+      }
+      throw e;
+    }
+    if (!order) {
+      res.status(404).json({ code: 404, message: '订单不存在' });
+      return;
+    }
+    res.json({ code: 0, message: '沟通取消成功', data: order });
+  } catch (error) {
+    console.error('沟通取消失败:', error);
+    res.status(500).json({ code: 500, message: '沟通取消失败' });
+  }
+});
+
 app.post('/api/orders/batch-assign', (req, res) => {
   try {
     const { orderIds, assignee } = req.body as BatchAssignParams;
@@ -298,7 +435,8 @@ app.get('/api/orders/options/enums', (_req, res) => {
     platforms: transformOptions(PLATFORM_LABELS),
     paymentMethods: transformOptions(PAYMENT_METHOD_LABELS),
     assignees: transformList(ASSIGNEES),
-    sourceChannels: transformList(SOURCE_CHANNELS)
+    sourceChannels: transformList(SOURCE_CHANNELS),
+    assignStages: transformOptions(ASSIGN_STAGE_LABELS)
   };
 
   res.json({

@@ -210,6 +210,23 @@
                   </el-select>
                 </el-form-item>
               </el-col>
+              <el-col :span="5">
+                <el-form-item label="指派阶段">
+                  <el-select 
+                    v-model="filterForm.assignStage" 
+                    placeholder="全部" 
+                    clearable
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in enumOptions?.assignStages"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
             </el-row>
           </div>
         </el-collapse-transition>
@@ -259,12 +276,12 @@
                 <el-tag type="primary">{{ row.orderNo }}</el-tag>
               </el-descriptions-item>
               <el-descriptions-item label="订单类型">
-                <el-tag :type="ORDER_TYPE_COLORS[row.type]">
+                <el-tag :type="getTagType(ORDER_TYPE_COLORS[row.type])">
                   {{ getLabel('orderTypes', row.type) }}
                 </el-tag>
               </el-descriptions-item>
               <el-descriptions-item label="订单状态">
-                <el-tag :type="ORDER_STATUS_COLORS[row.status]">
+                <el-tag :type="getTagType(ORDER_STATUS_COLORS[row.status])">
                   {{ getLabel('orderStatuses', row.status) }}
                 </el-tag>
               </el-descriptions-item>
@@ -275,7 +292,7 @@
                 {{ getLabel('paymentMethods', row.paymentMethod) }}
               </el-descriptions-item>
               <el-descriptions-item label="指派人">
-                <el-tag :type="row.assignee === '未指派' ? 'danger' : ''">
+                <el-tag :type="row.assignee === '未指派' ? 'danger' : 'info'">
                   {{ row.assignee || '未指派' }}
                 </el-tag>
               </el-descriptions-item>
@@ -315,6 +332,29 @@
               <el-descriptions-item label="收货地址" :span="3">
                 {{ row.customer.address }}
               </el-descriptions-item>
+              <el-descriptions-item label="指派阶段">
+                <el-tag 
+                  v-if="row.assignStage"
+                  :type="getTagType(ASSIGN_STAGE_COLORS[row.assignStage])" 
+                  size="small"
+                >
+                  {{ ASSIGN_STAGE_LABELS[row.assignStage] }}
+                </el-tag>
+                <span v-else style="color: #909399;">-</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="是否总部兜底">
+                <el-tag v-if="row.isHqTakeover" type="warning" size="small">是</el-tag>
+                <span v-else style="color: #909399;">否</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="指派金额">
+                <span v-if="row.assignAmount" style="color: #409eff; font-weight: bold;">
+                  ¥{{ row.assignAmount.toFixed(2) }}
+                </span>
+                <span v-else style="color: #909399;">-</span>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="row.rejectReason" label="拒单原因" :span="3">
+                <span style="color: #f56c6c;">{{ row.rejectReason }}</span>
+              </el-descriptions-item>
               <el-descriptions-item label="来源渠道">
                 {{ row.sourceChannel || '-' }}
               </el-descriptions-item>
@@ -339,7 +379,7 @@
                   {{ row.leaseInfo.endDate }}
                 </el-descriptions-item>
                 <el-descriptions-item label="租赁状态">
-                  <el-tag :type="LEASE_STATUS_COLORS[row.leaseInfo.leaseStatus]">
+                  <el-tag :type="getTagType(LEASE_STATUS_COLORS[row.leaseInfo.leaseStatus])">
                     {{ getLabel('leaseStatuses', row.leaseInfo.leaseStatus) }}
                   </el-tag>
                 </el-descriptions-item>
@@ -408,7 +448,7 @@
 
         <el-table-column label="订单类型" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="ORDER_TYPE_COLORS[row.type]" size="small">
+            <el-tag :type="getTagType(ORDER_TYPE_COLORS[row.type])" size="small">
               {{ getLabel('orderTypes', row.type) }}
             </el-tag>
           </template>
@@ -416,7 +456,7 @@
 
         <el-table-column label="订单状态" width="100" align="center" sortable="custom">
           <template #default="{ row }">
-            <el-tag :type="ORDER_STATUS_COLORS[row.status]" size="small">
+            <el-tag :type="getTagType(ORDER_STATUS_COLORS[row.status])" size="small">
               {{ getLabel('orderStatuses', row.status) }}
             </el-tag>
           </template>
@@ -470,6 +510,28 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="指派阶段" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag 
+              v-if="row.assignStage"
+              :type="getTagType(ASSIGN_STAGE_COLORS[row.assignStage])" 
+              size="small"
+            >
+              {{ ASSIGN_STAGE_LABELS[row.assignStage] }}
+            </el-tag>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="拒单原因" width="140" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.rejectReason" style="color: #f56c6c;">
+              {{ row.rejectReason }}
+            </span>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+
         <el-table-column 
           prop="createTime" 
           label="下单时间" 
@@ -488,16 +550,42 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="220" fixed="right" align="center">
+        <el-table-column label="操作" width="340" fixed="right" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleViewDetail(row)">
               <el-icon><View /></el-icon>
               详情
             </el-button>
-            <el-button type="success" link size="small" @click="handleAssign(row)">
-              <el-icon><User /></el-icon>
-              指派
-            </el-button>
+            <template v-if="row.assignStage === 'assigned'">
+              <el-button type="danger" link size="small" @click="handleReject(row)">
+                <el-icon><Close /></el-icon>
+                拒单
+              </el-button>
+              <el-button type="success" link size="small" @click="handleAssign(row)">
+                <el-icon><User /></el-icon>
+                改派
+              </el-button>
+            </template>
+            <template v-else-if="row.assignStage === 'store_rejected'">
+              <el-button type="warning" link size="small" @click="handleHqTakeover(row)">
+                <el-icon><OfficeBuilding /></el-icon>
+                兜底
+              </el-button>
+              <el-button type="success" link size="small" @click="handleHqTransfer(row)">
+                <el-icon><Switch /></el-icon>
+                转派
+              </el-button>
+              <el-button type="danger" link size="small" @click="handleHqCancel(row)">
+                <el-icon><Close /></el-icon>
+                取消
+              </el-button>
+            </template>
+            <template v-else>
+              <el-button type="success" link size="small" @click="handleAssign(row)">
+                <el-icon><User /></el-icon>
+                指派
+              </el-button>
+            </template>
             <el-button type="warning" link size="small" @click="handleEditStatus(row)">
               <el-icon><Edit /></el-icon>
               状态
@@ -531,12 +619,12 @@
             <el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="订单类型">
-            <el-tag :type="ORDER_TYPE_COLORS[currentOrder.type]">
+            <el-tag :type="getTagType(ORDER_TYPE_COLORS[currentOrder.type])">
               {{ getLabel('orderTypes', currentOrder.type) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="订单状态">
-            <el-tag :type="ORDER_STATUS_COLORS[currentOrder.status]">
+            <el-tag :type="getTagType(ORDER_STATUS_COLORS[currentOrder.status])">
               {{ getLabel('orderStatuses', currentOrder.status) }}
             </el-tag>
           </el-descriptions-item>
@@ -618,7 +706,7 @@
               {{ currentOrder.leaseInfo.leasePeriod }}{{ currentOrder.leaseInfo.leaseUnit === 'day' ? '天' : currentOrder.leaseInfo.leaseUnit === 'month' ? '月' : '年' }}
             </el-descriptions-item>
             <el-descriptions-item label="租赁状态">
-              <el-tag :type="LEASE_STATUS_COLORS[currentOrder.leaseInfo.leaseStatus]">
+              <el-tag :type="getTagType(LEASE_STATUS_COLORS[currentOrder.leaseInfo.leaseStatus])">
                 {{ getLabel('leaseStatuses', currentOrder.leaseInfo.leaseStatus) }}
               </el-tag>
             </el-descriptions-item>
@@ -642,12 +730,17 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="assignDialogVisible" title="订单指派" width="400px">
+    <el-dialog v-model="assignDialogVisible" title="订单指派" width="450px">
       <template v-if="currentOrder">
         <p style="margin-bottom: 16px;">
           订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
         </p>
-        <el-form label-width="80px">
+        <el-form label-width="100px">
+          <el-form-item label="下单金额">
+            <span style="color: #f56c6c; font-weight: bold; font-size: 16px;">
+              ¥{{ currentOrder.totalAmount.toFixed(2) }}
+            </span>
+          </el-form-item>
           <el-form-item label="指派人">
             <el-select 
               v-model="selectedAssignee" 
@@ -666,18 +759,27 @@
             <el-input-number
               v-model="assignAmount"
               :min="0"
+              :max="currentOrder.totalAmount"
               :precision="2"
               :step="100"
               :controls="true"
               style="width: 100%"
               placeholder="请输入指派金额"
             />
+            <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+              指派金额不能大于客户下单金额
+            </div>
           </el-form-item>
         </el-form>
       </template>
       <template #footer>
         <el-button @click="assignDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmAssign" :loading="assigning">确认指派</el-button>
+        <el-button 
+          type="primary" 
+          @click="confirmAssign" 
+          :loading="assigning"
+          :disabled="!canConfirmAssign"
+        >确认指派</el-button>
       </template>
     </el-dialog>
 
@@ -688,7 +790,7 @@
         </p>
         <p style="margin-bottom: 16px;">
           当前状态：
-          <el-tag :type="ORDER_STATUS_COLORS[currentOrder.status]">
+          <el-tag :type="getTagType(ORDER_STATUS_COLORS[currentOrder.status])">
             {{ getLabel('orderStatuses', currentOrder.status) }}
           </el-tag>
         </p>
@@ -711,24 +813,237 @@
         <el-button type="primary" @click="confirmStatus" :loading="statusUpdating">确认修改</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="rejectDialogVisible" title="门店拒单" width="450px">
+      <template v-if="currentOrder">
+        <p style="margin-bottom: 16px;">
+          订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
+        </p>
+        <el-form label-width="100px">
+          <el-form-item label="当前指派人">
+            <el-tag>{{ currentOrder.assignee || '未指派' }}</el-tag>
+          </el-form-item>
+          <el-form-item label="下单金额">
+            <span style="color: #f56c6c; font-weight: bold;">
+              ¥{{ currentOrder.totalAmount.toFixed(2) }}
+            </span>
+          </el-form-item>
+          <el-form-item label="拒单原因" required>
+            <el-input
+              v-model="rejectReason"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入拒单原因"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="rejectDialogVisible = false">取消</el-button>
+        <el-button 
+          type="danger" 
+          @click="confirmReject" 
+          :loading="rejecting"
+          :disabled="!rejectReason.trim()"
+        >确认拒单</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="hqTakeoverDialogVisible" title="总部兜底接单" width="450px">
+      <template v-if="currentOrder">
+        <el-alert
+          title="门店拒单后由总部兜底接单"
+          type="warning"
+          :closable="false"
+          style="margin-bottom: 16px;"
+        />
+        <p style="margin-bottom: 16px;">
+          订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
+        </p>
+        <el-form label-width="100px">
+          <el-form-item label="拒单原因">
+            <span style="color: #f56c6c;">{{ currentOrder.rejectReason || '-' }}</span>
+          </el-form-item>
+          <el-form-item label="下单金额">
+            <span style="color: #f56c6c; font-weight: bold;">
+              ¥{{ currentOrder.totalAmount.toFixed(2) }}
+            </span>
+          </el-form-item>
+          <el-form-item label="指派金额" required>
+            <el-input-number
+              v-model="hqTakeoverAmount"
+              :min="0"
+              :max="currentOrder.totalAmount"
+              :precision="2"
+              :step="100"
+              :controls="true"
+              style="width: 100%"
+              placeholder="请输入总部兜底指派金额"
+            />
+            <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+              指派金额不能大于客户下单金额
+            </div>
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="hqTakeoverDialogVisible = false">取消</el-button>
+        <el-button 
+          type="warning" 
+          @click="confirmHqTakeover" 
+          :loading="hqTakeoverLoading"
+          :disabled="hqTakeoverAmount <= 0"
+        >确认兜底</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="hqTransferDialogVisible" title="总部转派" width="450px">
+      <template v-if="currentOrder">
+        <el-alert
+          title="门店拒单后由总部转派给其他指派人"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 16px;"
+        />
+        <p style="margin-bottom: 16px;">
+          订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
+        </p>
+        <el-form label-width="100px">
+          <el-form-item label="拒单原因">
+            <span style="color: #f56c6c;">{{ currentOrder.rejectReason || '-' }}</span>
+          </el-form-item>
+          <el-form-item label="下单金额">
+            <span style="color: #f56c6c; font-weight: bold;">
+              ¥{{ currentOrder.totalAmount.toFixed(2) }}
+            </span>
+          </el-form-item>
+          <el-form-item label="转派对象" required>
+            <el-select 
+              v-model="hqTransferAssignee" 
+              placeholder="请选择转派对象" 
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in transferAssigneeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="指派金额" required>
+            <el-input-number
+              v-model="hqTransferAmount"
+              :min="0"
+              :max="currentOrder.totalAmount"
+              :precision="2"
+              :step="100"
+              :controls="true"
+              style="width: 100%"
+              placeholder="请输入转派金额"
+            />
+            <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+              指派金额不能大于客户下单金额
+            </div>
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="hqTransferDialogVisible = false">取消</el-button>
+        <el-button 
+          type="primary" 
+          @click="confirmHqTransfer" 
+          :loading="hqTransferLoading"
+          :disabled="!hqTransferAssignee || hqTransferAmount <= 0"
+        >确认转派</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="hqCancelDialogVisible" title="沟通取消订单" width="450px">
+      <template v-if="currentOrder">
+        <el-alert
+          title="与客户沟通后取消订单，订单状态将变为已取消"
+          type="error"
+          :closable="false"
+          style="margin-bottom: 16px;"
+        />
+        <p style="margin-bottom: 16px;">
+          订单编号：<el-tag type="primary">{{ currentOrder.orderNo }}</el-tag>
+        </p>
+        <el-form label-width="100px">
+          <el-form-item label="当前状态">
+            <el-tag :type="getTagType(ORDER_STATUS_COLORS[currentOrder.status])">
+              {{ getLabel('orderStatuses', currentOrder.status) }}
+            </el-tag>
+          </el-form-item>
+          <el-form-item label="下单金额">
+            <span style="color: #f56c6c; font-weight: bold;">
+              ¥{{ currentOrder.totalAmount.toFixed(2) }}
+            </span>
+          </el-form-item>
+          <el-form-item label="取消原因" required>
+            <el-input
+              v-model="hqCancelReason"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入沟通取消原因"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="hqCancelDialogVisible = false">取消</el-button>
+        <el-button 
+          type="danger" 
+          @click="confirmHqCancel" 
+          :loading="hqCancelLoading"
+          :disabled="!hqCancelReason.trim()"
+        >确认取消</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  View,
+  User,
+  Edit,
+  Filter,
+  Setting,
+  RefreshRight,
+  Refresh,
+  Search,
+  Download,
+  List,
+  Clock,
+  Goods,
+  Close,
+  OfficeBuilding,
+  Switch
+} from '@element-plus/icons-vue'
 import type { 
   Order, 
   OrderFilter, 
   PaginationParams, 
   PaginatedResponse,
   EnumOptions,
-  OrderStatus
+  OrderStatus,
+  AssignStage
 } from '@/types/order'
 import { 
   ORDER_TYPE_COLORS, 
   ORDER_STATUS_COLORS, 
   LEASE_STATUS_COLORS,
+  ASSIGN_STAGE_LABELS,
+  ASSIGN_STAGE_COLORS,
+  ASSIGNEE_HQ_TAKEOVER,
   formatDate, 
   formatAmount 
 } from '@/types/order'
@@ -737,8 +1052,17 @@ import {
   getEnumOptions, 
   exportOrdersToExcel,
   assignOrder,
-  updateOrderStatus
+  updateOrderStatus,
+  rejectOrder,
+  hqTakeoverOrder,
+  hqTransferOrder,
+  hqCancelOrder
 } from '@/api/order'
+
+function getTagType(color: string | undefined): 'primary' | 'success' | 'info' | 'warning' | 'danger' {
+  if (!color) return 'info'
+  return color as 'primary' | 'success' | 'info' | 'warning' | 'danger'
+}
 
 const loading = ref(false)
 const exporting = ref(false)
@@ -746,6 +1070,24 @@ const assigning = ref(false)
 const statusUpdating = ref(false)
 const showAdvancedFilter = ref(false)
 const assignAmount = ref<number>(0)
+
+const rejecting = ref(false)
+const hqTakeoverLoading = ref(false)
+const hqTransferLoading = ref(false)
+const hqCancelLoading = ref(false)
+
+const rejectDialogVisible = ref(false)
+const rejectReason = ref('')
+
+const hqTakeoverDialogVisible = ref(false)
+const hqTakeoverAmount = ref<number>(0)
+
+const hqTransferDialogVisible = ref(false)
+const hqTransferAssignee = ref('')
+const hqTransferAmount = ref<number>(0)
+
+const hqCancelDialogVisible = ref(false)
+const hqCancelReason = ref('')
 
 const enumOptions = ref<EnumOptions | null>(null)
 const dateRange = ref<string[]>([])
@@ -764,7 +1106,24 @@ const filterForm = reactive<OrderFilter>({
   minAmount: undefined,
   maxAmount: undefined,
   assignee: undefined,
-  leaseStatus: undefined
+  leaseStatus: undefined,
+  assignStage: undefined
+})
+
+const canConfirmAssign = computed(() => {
+  if (!currentOrder.value) return false
+  return (
+    selectedAssignee.value !== '' &&
+    assignAmount.value > 0 &&
+    assignAmount.value <= currentOrder.value.totalAmount
+  )
+})
+
+const transferAssigneeOptions = computed(() => {
+  if (!enumOptions.value?.assignees) return []
+  return enumOptions.value.assignees.filter(
+    item => item.value !== ASSIGNEE_HQ_TAKEOVER
+  )
 })
 
 const pagination = reactive<PaginationParams>({

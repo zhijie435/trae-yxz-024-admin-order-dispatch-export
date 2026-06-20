@@ -111,3 +111,19 @@ export async function assignOrder(orderId: string, assignee: string, assignAmoun
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<ApiResponse<Order>> {
   return request.put(`/orders/${orderId}/status`, { status });
 }
+
+export async function rejectOrder(orderId: string, reason: string): Promise<ApiResponse<Order>> {
+  return request.put(`/orders/${orderId}/reject`, { reason });
+}
+
+export async function hqTakeoverOrder(orderId: string, assignAmount: number): Promise<ApiResponse<Order>> {
+  return request.put(`/orders/${orderId}/hq-takeover`, { assignAmount });
+}
+
+export async function hqTransferOrder(orderId: string, assignee: string, assignAmount: number): Promise<ApiResponse<Order>> {
+  return request.put(`/orders/${orderId}/hq-transfer`, { assignee, assignAmount });
+}
+
+export async function hqCancelOrder(orderId: string, reason: string): Promise<ApiResponse<Order>> {
+  return request.put(`/orders/${orderId}/hq-cancel`, { reason });
+}

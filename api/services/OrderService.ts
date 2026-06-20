@@ -5,6 +5,7 @@ import {
   OrderFilterParams,
   PaginatedResponse,
   AssignOrderParams,
+  OrderStatus,
   ORDER_STATUS_LABELS,
   LEASE_STATUS_LABELS,
   ORDER_TYPE_LABELS,
