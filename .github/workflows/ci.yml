@@ -1,0 +1,37 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Type check server
+        run: npm run build:server
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Type check & build client
+        working-directory: client
+        run: npm run build
